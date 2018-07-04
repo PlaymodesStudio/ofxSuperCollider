@@ -19,7 +19,7 @@
 
 ofxSCServer *ofxSCServer::plocal = NULL;
 
-ofxSCServer::ofxSCServer(string hostname, unsigned int port)
+ofxSCServer::ofxSCServer(std::string hostname, unsigned int port)
 {
 	this->hostname = hostname;
 	this->port = port;

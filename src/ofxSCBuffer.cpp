@@ -26,7 +26,7 @@ ofxSCBuffer::ofxSCBuffer(int frames, int channels, ofxSCServer *server)
 	ready = false;
 }
 
-void ofxSCBuffer::read(string path)
+void ofxSCBuffer::read(std::string path)
 {
 	// XXX do we need to strncpy this?
 	// i think so.

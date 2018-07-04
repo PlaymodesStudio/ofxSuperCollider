@@ -24,7 +24,7 @@ class ofxSCBuffer;
 class ofxSCServer
 {
 public:	
-	ofxSCServer(string hostname = "localhost", unsigned int port = 57110);
+	ofxSCServer(std::string hostname = "localhost", unsigned int port = 57110);
 	~ofxSCServer();
 
 	static ofxSCServer     *local();
@@ -52,7 +52,7 @@ protected:
 #endif
 	
 	static ofxSCServer *plocal;
-	string hostname;
+	std::string hostname;
 	unsigned int port;
 };
 

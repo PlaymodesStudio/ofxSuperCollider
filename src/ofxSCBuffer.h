@@ -22,7 +22,7 @@ class ofxSCBuffer
 public:
 	ofxSCBuffer(int frames = 0, int channels = 0, ofxSCServer *server = ofxSCServer::local());
 	
-	void read(string path);
+	void read(std::string path);
 	void query();
 	void alloc();
 	
@@ -43,6 +43,6 @@ public:
 	float sampleRate;
 	bool ready;
 	
-	string path;
+	std::string path;
 	
 };

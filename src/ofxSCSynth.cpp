@@ -13,7 +13,7 @@
 
 #include "ofxSCSynth.h"
 
-ofxSCSynth::ofxSCSynth(string name, ofxSCServer *server)
+ofxSCSynth::ofxSCSynth(std::string name, ofxSCServer *server)
 {
 	ofxSCNode();
 	
@@ -43,7 +43,7 @@ void ofxSCSynth::create(int position, int groupID)
 	for (dictionary::const_iterator it = args.begin(); 
         it != args.end(); ++it)
 	{
-		string key = it->first;
+		std::string key = it->first;
 		float value = it->second;
 
 		m.clear();
@@ -65,7 +65,7 @@ void ofxSCSynth::grain(int position, int groupID)
 	create(position, groupID);
 }
 
-void ofxSCSynth::set(string arg, double value)
+void ofxSCSynth::set(std::string arg, double value)
 {
 	args.insert(dictionary::value_type(arg, value));
 	
@@ -81,7 +81,7 @@ void ofxSCSynth::set(string arg, double value)
 	}
 }
 
-void ofxSCSynth::set(string arg, int value)
+void ofxSCSynth::set(std::string arg, int value)
 {
 	args.insert(dictionary::value_type(arg, value));
 	

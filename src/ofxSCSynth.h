@@ -15,18 +15,20 @@
 
 #include <vector>
 //#include <tr1/unordered_map>
+#include <unordered_map>
+
 
 #include "ofxSCNode.h"
 
-typedef unordered_map<string, float> dictionary;
+typedef std::unordered_map<std::string, float> dictionary;
 
 class ofxSCSynth : public ofxSCNode
 {
 public:	
-	ofxSCSynth(string name = "sine", ofxSCServer *server = ofxSCServer::local());
+	ofxSCSynth(std::string name = "sine", ofxSCServer *server = ofxSCServer::local());
 	~ofxSCSynth();
     
-    string getName() {return name;}
+    std::string getName() {return name;}
 
 	ofxSCSynth (const ofxSCSynth & other) { copy (other); }
 	ofxSCSynth& operator= (const ofxSCSynth & other) { return copy(other); }
@@ -37,11 +39,11 @@ public:
 	void create(int position = 0, int groupID = 1);
 	void grain(int position = 0, int groupID = 1);
 	
-	void set(string arg, double value);
-	void set(string arg, int value);
+	void set(std::string arg, double value);
+	void set(std::string arg, int value);
 		
 protected:
 
-	string name;
+	std::string name;
 	dictionary args;
 };
