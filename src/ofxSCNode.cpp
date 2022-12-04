@@ -50,3 +50,15 @@ void ofxSCNode::free()
 void ofxSCNode::create(int position, int groupID)
 {
 }
+
+void ofxSCNode::order(int position, int groupID)
+{
+    ofxOscMessage m;
+    
+    m.setAddress("/n_order");
+    m.addIntArg(position);
+    m.addIntArg(groupID);
+    m.addIntArg(nodeID);
+    
+    server->sendMsg(m);
+}

@@ -36,6 +36,7 @@ public:
 	
 	// pure virtual method
 	virtual void create(int position = 0, int groupID = 1);
+    void order(int position = 0, int groupID = 1);
 	
 	void free();
 
