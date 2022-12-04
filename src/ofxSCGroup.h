@@ -29,7 +29,7 @@ public:
 	ofxSCGroup& operator= (const ofxSCGroup & other) { return copy(other); }
 
 	/// for operator= and copy constructor
-    ofxSCGroup & copy(const ofxSCGroup & other) { /* needs to be implemented */ }
+    ofxSCGroup & copy(const ofxSCGroup & other) { return *this;/* needs to be implemented */ }
 	
 	void create(int position = 0, int groupID = 1);
     void freeAll() { /* needs to be implemented */ }
