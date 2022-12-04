@@ -113,3 +113,20 @@ void ofxSCSynth::set(std::string arg, std::vector<float> values)
         server->sendMsg(m);
     }
 }
+
+void ofxSCSynth::set(std::string arg, std::vector<int> values)
+{
+    //args.insert(dictionary::value_type(arg, values));
+    
+    if (created)
+    {
+        ofxOscMessage m;
+        m.setAddress("/n_setn");
+        m.addIntArg(nodeID);
+        m.addStringArg(arg);
+        m.addIntArg(values.size());
+        for(auto &v : values) m.addIntArg(v);
+        
+        server->sendMsg(m);
+    }
+}

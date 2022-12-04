@@ -42,6 +42,7 @@ public:
 	void set(std::string arg, double value);
 	void set(std::string arg, int value);
     void set(std::string arg, std::vector<float> values);
+    void set(std::string arg, std::vector<int> values);
 		
 protected:
 
