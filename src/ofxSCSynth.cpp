@@ -130,3 +130,49 @@ void ofxSCSynth::set(std::string arg, std::vector<int> values)
         server->sendMsg(m);
     }
 }
+
+ofxOscMessage ofxSCSynth::setMessage(std::string arg, double value)
+{
+    ofxOscMessage m;
+    m.setAddress("/n_set");
+    m.addIntArg(nodeID);
+    m.addStringArg(arg);
+    m.addFloatArg(value);
+    
+    return m;
+}
+
+ofxOscMessage ofxSCSynth::setMessage(std::string arg, int value)
+{
+    ofxOscMessage m;
+    m.setAddress("/n_set");
+    m.addIntArg(nodeID);
+    m.addStringArg(arg);
+    m.addIntArg(value);
+    
+    return m;
+}
+
+ofxOscMessage ofxSCSynth::setMessage(std::string arg, std::vector<float> values)
+{
+    ofxOscMessage m;
+    m.setAddress("/n_setn");
+    m.addIntArg(nodeID);
+    m.addStringArg(arg);
+    m.addIntArg(values.size());
+    for(auto &v : values) m.addFloatArg(v);
+    
+    return m;
+}
+
+ofxOscMessage ofxSCSynth::setMessage(std::string arg, std::vector<int> values)
+{
+    ofxOscMessage m;
+    m.setAddress("/n_setn");
+    m.addIntArg(nodeID);
+    m.addStringArg(arg);
+    m.addIntArg(values.size());
+    for(auto &v : values) m.addIntArg(v);
+    
+    return m;
+}

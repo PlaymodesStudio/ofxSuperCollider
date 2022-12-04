@@ -43,6 +43,11 @@ public:
 	void set(std::string arg, int value);
     void set(std::string arg, std::vector<float> values);
     void set(std::string arg, std::vector<int> values);
+    
+    ofxOscMessage setMessage(std::string arg, double value);
+    ofxOscMessage setMessage(std::string arg, int value);
+    ofxOscMessage setMessage(std::string arg, std::vector<float> values);
+    ofxOscMessage setMessage(std::string arg, std::vector<int> values);
 		
 protected:
 
