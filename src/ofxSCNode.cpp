@@ -62,3 +62,15 @@ void ofxSCNode::order(int position, int groupID)
     
     server->sendMsg(m);
 }
+
+void ofxSCNode::order(int position, std::vector<int> groupIDs)
+{
+    ofxOscMessage m;
+    
+    m.setAddress("/n_order");
+    m.addIntArg(position);
+    for(int groupID : groupIDs) m.addIntArg(groupID);
+    m.addIntArg(nodeID);
+    
+    server->sendMsg(m);
+}
