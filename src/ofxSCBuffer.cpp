@@ -43,6 +43,26 @@ void ofxSCBuffer::read(std::string path)
 	server->sendMsg(m);
 }
 
+void ofxSCBuffer::readChannel(std::string path, std::vector<int> channelsToRead)
+{
+    // XXX do we need to strncpy this?
+    // i think so.
+    this->path.assign(path);
+    
+    ofxOscMessage m;
+    m.setAddress("/b_allocReadChannel");
+    m.addIntArg(index);
+    m.addStringArg(path);
+    m.addIntArg(0);
+    m.addIntArg(0);
+    for(auto &c : channelsToRead) m.addIntArg(c);
+    
+    // would be nice to also send a b_query at this point, but
+    // ofxOsc does not have support for byte array args
+    
+    server->sendMsg(m);
+}
+
 void ofxSCBuffer::query()
 {
 	ofxOscMessage m;	

@@ -23,6 +23,7 @@ public:
 	ofxSCBuffer(int frames = 0, int channels = 0, ofxSCServer *server = ofxSCServer::local());
 	
 	void read(std::string path);
+    void readChannel(std::string path, std::vector<int> channelsToRead);
 	void query();
 	void alloc();
 	
