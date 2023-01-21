@@ -74,3 +74,23 @@ void ofxSCNode::order(int position, std::vector<int> groupIDs)
     
     server->sendMsg(m);
 }
+
+void ofxSCNode::moveBefore(int _nodeID){
+    ofxOscMessage m;
+    
+    m.setAddress("/n_before");
+    m.addIntArg(nodeID);
+    m.addIntArg(_nodeID);
+    
+    server->sendMsg(m);
+}
+
+void ofxSCNode::moveAfter(int _nodeID){
+    ofxOscMessage m;
+    
+    m.setAddress("/n_after");
+    m.addIntArg(nodeID);
+    m.addIntArg(_nodeID);
+    
+    server->sendMsg(m);
+}

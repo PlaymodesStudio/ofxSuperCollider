@@ -38,7 +38,9 @@ public:
 	virtual void create(int position = 0, int groupID = 1);
     void order(int position = 0, int groupID = 1);
     void order(int position = 0, std::vector<int> groupIDs = {1});
-	
+    
+    void moveBefore(int nodeID);
+    void moveAfter(int nodeID);
 	void free();
 
 	static int id_base;
