@@ -44,6 +44,9 @@ public:
     void set(std::string arg, std::vector<float> values);
     void set(std::string arg, std::vector<int> values);
     
+    void setMultiple(std::string arg, float value, int quantity);
+    void setMultiple(std::string arg, int value, int quantity);
+    
     ofxOscMessage setMessage(std::string arg, double value);
     ofxOscMessage setMessage(std::string arg, int value);
     ofxOscMessage setMessage(std::string arg, std::vector<float> values);

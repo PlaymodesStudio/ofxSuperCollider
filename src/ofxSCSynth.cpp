@@ -131,6 +131,36 @@ void ofxSCSynth::set(std::string arg, std::vector<int> values)
     }
 }
 
+void ofxSCSynth::setMultiple(std::string arg, float value, int quantity){
+    if (created)
+    {
+        ofxOscMessage m;
+        m.setAddress("/n_fill");
+        m.addIntArg(nodeID);
+        m.addStringArg(arg);
+        m.addIntArg(quantity);
+        m.addFloatArg(value);
+        m.addFloatArg(value);
+
+        server->sendMsg(m);
+    }
+}
+
+void ofxSCSynth::setMultiple(std::string arg, int value, int quantity){
+    if (created)
+    {
+        ofxOscMessage m;
+        m.setAddress("/n_fill");
+        m.addIntArg(nodeID);
+        m.addStringArg(arg);
+        m.addIntArg(quantity);
+        m.addIntArg(value);
+        m.addIntArg(value);
+        
+        server->sendMsg(m);
+    }
+}
+
 ofxOscMessage ofxSCSynth::setMessage(std::string arg, double value)
 {
     ofxOscMessage m;
