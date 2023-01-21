@@ -41,6 +41,8 @@ public:
     
     void moveBefore(int nodeID);
     void moveAfter(int nodeID);
+    
+    void run(bool b);
 	void free();
 
 	static int id_base;

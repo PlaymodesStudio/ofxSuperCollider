@@ -37,6 +37,14 @@ void ofxSCNode::addToTail(ofxSCGroup group)
 	this->create(1, group.nodeID);
 }
 
+void ofxSCNode::run(bool b){
+    ofxOscMessage m;
+    m.setAddress("/n_run");
+    m.addIntArg(nodeID);
+    m.addIntArg(b ? 1 : 0);
+    server->sendMsg(m);
+}
+
 void ofxSCNode::free()
 {
 	ofxOscMessage m;
