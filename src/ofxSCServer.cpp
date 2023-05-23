@@ -24,16 +24,10 @@ ofxSCServer::ofxSCServer(std::string hostname, unsigned int port)
 	this->hostname = hostname;
 	this->port = port;
 
-#ifdef _ofxOscSENDERRECEIVER_H
 	
-	osc.setup(LISTEN_PORT, hostname, port);
-	ofAddListener(ofEvents.draw, this, &ofxSCServer::_process);
+	osc.setup(hostname, port, LISTEN_PORT);
+    listener = ofEvents().update.newListener(this, &ofxSCServer::_process);
 	
-#else
-	
-	osc.setup(hostname, port);
-	
-#endif
 	
 	allocatorBusAudio = new ofxSCResourceAllocator(512);
 	allocatorBusAudio->pos = 64;
@@ -68,7 +62,7 @@ void ofxSCServer::_process(ofEventArgs &e)
 void ofxSCServer::process()
 {
 	
-#ifdef _ofxOscSENDERRECEIVER_H			
+//#ifdef _ofxOscSENDERRECEIVER_H
 
 	while(osc.hasWaitingMessages())
 	{
@@ -107,11 +101,11 @@ void ofxSCServer::process()
 		}
 	}
 	
-#else
-	
-	fprintf(stderr, "This version of ofxOsc does not have support for sender/receive objects. Please update to enable receiving responses from SuperCollider.\n");
-	
-#endif
+//#else
+//
+//	fprintf(stderr, "This version of ofxOsc does not have support for sender/receive objects. Please update to enable receiving responses from SuperCollider.\n");
+//
+//#endif
 	
 }
 

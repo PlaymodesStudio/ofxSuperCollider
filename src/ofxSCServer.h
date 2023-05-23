@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "ofxOsc.h"
+#include "ofxOscSenderReceiver.h"
 #include "ofxSCResourceAllocator.h"
 
 class ofxSCBuffer;
@@ -45,11 +46,8 @@ public:
 	
 protected:
 
-#ifdef _ofxOscSENDERRECEIVER_H
 	ofxOscSenderReceiver   osc;
-#else
-	ofxOscSender           osc;
-#endif
+    ofEventListener listener;
 	
 	static ofxSCServer *plocal;
 	std::string hostname;
