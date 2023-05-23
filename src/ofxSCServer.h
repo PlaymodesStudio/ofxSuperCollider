@@ -20,6 +20,7 @@
 #include "ofxSCResourceAllocator.h"
 
 class ofxSCBuffer;
+class ofxSCBus;
 
 
 class ofxSCServer
@@ -42,8 +43,10 @@ public:
 	ofxSCResourceAllocator *allocatorBuffer;
 	ofxSCResourceAllocator *allocatorSynth;
 
-	ofxSCBuffer *buffers[1024];
-	
+	ofxSCBuffer *buffers[4096];
+    ofxSCBus *controlBusses[4096];
+    ofxSCBus *audioBusses[4096];
+    
 protected:
 
 	ofxOscSenderReceiver   osc;

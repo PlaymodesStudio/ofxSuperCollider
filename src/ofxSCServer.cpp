@@ -28,12 +28,11 @@ ofxSCServer::ofxSCServer(std::string hostname, unsigned int port)
 	osc.setup(hostname, port, LISTEN_PORT);
     listener = ofEvents().update.newListener(this, &ofxSCServer::_process);
 	
-	
-	allocatorBusAudio = new ofxSCResourceAllocator(512);
+	allocatorBusAudio = new ofxSCResourceAllocator(4096);
 	allocatorBusAudio->pos = 64;
 	
-	allocatorBusControl = new ofxSCResourceAllocator(512);
-	allocatorBuffer = new ofxSCResourceAllocator(512);
+	allocatorBusControl = new ofxSCResourceAllocator(4096);
+	allocatorBuffer = new ofxSCResourceAllocator(4096);
 	
 	if (plocal == 0)
 		plocal = this;
@@ -67,8 +66,9 @@ void ofxSCServer::process()
 	while(osc.hasWaitingMessages())
 	{
 		ofxOscMessage m;
-		osc.getNextMessage(&m);
-		printf("** got OSC! %s\n", m.getAddress().c_str());
+		osc.getNextMessage(m);
+//		printf("** got OSC! %s\n", m.getAddress().c_str());
+//        ofLog() << m;
 		
 		/*-----------------------------------------------------------------------------
 		 * /done
@@ -76,10 +76,10 @@ void ofxSCServer::process()
 		 /*---------------------------------------------------------------------------*/
 		if (m.getAddress() == "/done")
 		{
-			string cmd = m.getArgAsString(0);
-			int index = m.getArgAsInt32(1);
-			printf("** buffer read completed, ID %d\n", index);
-			buffers[index]->ready = true;
+//			std::string cmd = m.getArgAsString(0);
+//			int index = m.getArgAsInt32(1);
+//			printf("** buffer read completed, ID %d\n", index);
+//			buffers[index]->ready = true;
 		}
 
 		/*-----------------------------------------------------------------------------
@@ -99,6 +99,16 @@ void ofxSCServer::process()
 		else if (m.getAddress() == "/fail")
 		{
 		}
+        
+        else if (m.getAddress() == "/c_set"){
+            int firstIndex = m.getArgAsInt32(0);
+            for(int i = 0; i < m.getNumArgs(); i+=2){
+                int index = m.getArgAsInt32(i);
+                if(controlBusses[firstIndex] != NULL){
+                    controlBusses[firstIndex]->readValues[index-firstIndex] = m.getArgAsFloat(i+1);
+                }
+            }
+        }
 	}
 	
 //#else
