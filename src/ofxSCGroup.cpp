@@ -13,13 +13,14 @@
 
 #include "ofxSCGroup.h"
 
-void ofxSCGroup::create(int position, int groupID)
+void ofxSCGroup::create(int position, int groupID, bool parallel)
 {
 	nodeID = ofxSCNode::id_base++;
 	
 	ofxOscMessage m;
 	
-	m.setAddress("/g_new");
+    if(parallel) m.setAddress("/p_new");
+	else m.setAddress("/g_new");
 	m.addIntArg(nodeID);
 	m.addIntArg(position);
 	m.addIntArg(groupID);

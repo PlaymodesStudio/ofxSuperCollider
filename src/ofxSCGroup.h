@@ -31,7 +31,7 @@ public:
 	/// for operator= and copy constructor
     ofxSCGroup & copy(const ofxSCGroup & other) { return *this;/* needs to be implemented */ }
 	
-	void create(int position = 0, int groupID = 1);
+	void create(int position = 0, int groupID = 1, bool parallel = false);
     void freeAll() { /* needs to be implemented */ }
 		
 protected:
