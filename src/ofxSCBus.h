@@ -25,6 +25,7 @@ public:
 	
     void set(float value);
 	void free();
+    void requestValues();
 	
 	static int id_base;
 	
@@ -32,4 +33,6 @@ public:
 	int rate;
 	int index;
 	int channels;
+    
+    std::vector<float> readValues;
 };
