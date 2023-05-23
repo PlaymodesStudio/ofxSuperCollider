@@ -87,6 +87,7 @@ void ofxSCBuffer::free()
 	m.setAddress("/b_free");
 	m.addIntArg(index);
 	server->sendMsg(m);
-	
+    
+    server->buffers[index] = NULL;
 	server->allocatorBuffer->free(index);
 }
