@@ -45,7 +45,7 @@ public:
 
 	ofxSCBuffer *buffers[4096];
     ofxSCBus *controlBusses[4096];
-    ofxSCBus *audioBusses[4096];
+    ofxSCBus *audioBusses[65536];
     
 protected:
 
