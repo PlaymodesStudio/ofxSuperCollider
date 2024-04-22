@@ -36,7 +36,11 @@ public:
 	void notify();
 	
 	void sendMsg(ofxOscMessage& message);
-	void sendBundle(ofxOscBundle& bundle);	
+    void sendBundle(ofxOscBundle& bundle);
+    
+    void setWaitToSend(bool b);
+    bool getWaitToSend();
+    void sendStoredBundle();
 	
 	ofxSCResourceAllocator *allocatorBusAudio;
 	ofxSCResourceAllocator *allocatorBusControl;
@@ -51,6 +55,10 @@ protected:
 
 	ofxOscSenderReceiver   osc;
     ofEventListener listener;
+    
+    bool waitToSend;
+    
+    ofxOscBundle toSendBundle;
 	
 	static ofxSCServer *plocal;
 	std::string hostname;

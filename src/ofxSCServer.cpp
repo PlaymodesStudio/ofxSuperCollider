@@ -129,10 +129,36 @@ void ofxSCServer::notify()
 
 void ofxSCServer::sendMsg(ofxOscMessage& m)
 {
-	osc.sendMessage(m);
+    if(toSendBundle.getMessageCount() > 1000) sendStoredBundle();
+    if(waitToSend){
+        toSendBundle.addMessage(m);
+    }else{
+        osc.sendMessage(m);
+    }
 }
 
 void ofxSCServer::sendBundle(ofxOscBundle& b)
 {
-	osc.sendBundle(b);
+    if(toSendBundle.getMessageCount() > (1000-b.getMessageCount())) sendStoredBundle();
+    if(waitToSend){
+        for(int i = 0; i < b.getMessageCount(); i++){
+            toSendBundle.addMessage(b.getMessageAt(i));
+        }
+    }else{
+        osc.sendBundle(b);
+    }
+}
+
+void ofxSCServer::setWaitToSend(bool b){
+    waitToSend = b;
+    toSendBundle.clear();
+}
+
+bool ofxSCServer::getWaitToSend(){
+    return waitToSend;
+}
+
+void ofxSCServer::sendStoredBundle(){
+    osc.sendBundle(toSendBundle);
+    toSendBundle.clear();
 }
