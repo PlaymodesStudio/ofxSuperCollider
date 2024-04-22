@@ -19,7 +19,6 @@
 
 #include "ofxOscBundle.h"
 #include "ofParameter.h"
-#include "ofParameterGroup.h"
 
 #include "ofThreadChannel.h"
 
