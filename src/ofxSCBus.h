@@ -22,6 +22,7 @@ class ofxSCBus
 	
 public:
 	ofxSCBus(int rate = RATE_AUDIO, int channels = 2, ofxSCServer *server = ofxSCServer::local());
+    ~ofxSCBus();
 	
     void set(float value);
 	void free();

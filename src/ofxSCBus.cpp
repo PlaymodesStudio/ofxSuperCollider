@@ -36,6 +36,10 @@ ofxSCBus::ofxSCBus(int rate, int channels, ofxSCServer *server)
 	}
 }
 
+ofxSCBus::~ofxSCBus(){
+    free();
+}
+
 void ofxSCBus::set(float value)
 {
     ofxOscMessage m;
