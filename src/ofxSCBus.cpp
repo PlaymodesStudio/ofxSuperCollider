@@ -37,7 +37,52 @@ ofxSCBus::ofxSCBus(int rate, int channels, ofxSCServer *server)
 }
 
 ofxSCBus::~ofxSCBus(){
-    free();
+//    free();
+}
+
+// Copy constructor
+ofxSCBus::ofxSCBus(const ofxSCBus& other) {
+    rate = other.rate;
+    channels = other.channels;
+    server = other.server;
+}
+
+// Copy assignment operator
+ofxSCBus& ofxSCBus::operator=(const ofxSCBus& other) {
+    if (this != &other) {
+        free();  // Free existing resources
+
+        rate = other.rate;
+        channels = other.channels;
+        server = other.server;
+    }
+    return *this;
+}
+
+// Move constructor
+ofxSCBus::ofxSCBus(ofxSCBus&& other) noexcept
+    : server(other.server), rate(other.rate), index(other.index), channels(other.channels), readValues(std::move(other.readValues)) {
+    other.server = nullptr;
+    other.rate = 0;
+    other.index = 0;
+    other.channels = 0;
+}
+
+// Move assignment operator
+ofxSCBus& ofxSCBus::operator=(ofxSCBus&& other) noexcept {
+    if (this != &other) {
+        server = other.server;
+        rate = other.rate;
+        index = other.index;
+        channels = other.channels;
+        readValues = std::move(other.readValues);
+
+        other.server = nullptr;
+        other.rate = 0;
+        other.index = 0;
+        other.channels = 0;
+    }
+    return *this;
 }
 
 void ofxSCBus::set(float value)
@@ -56,8 +101,10 @@ void ofxSCBus::free()
     if (this->rate == RATE_CONTROL){
 		server->allocatorBusControl->free(this->index);
         server->controlBusses[index] = NULL;
-    }else
-		server->allocatorBusAudio->free(this->index);
+    }else{
+        server->allocatorBusAudio->free(this->index);
+        server->audioBusses[index] = NULL;
+    }
 }
 
 void ofxSCBus::requestValues()

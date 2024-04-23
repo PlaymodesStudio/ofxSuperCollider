@@ -23,6 +23,18 @@ class ofxSCBus
 public:
 	ofxSCBus(int rate = RATE_AUDIO, int channels = 2, ofxSCServer *server = ofxSCServer::local());
     ~ofxSCBus();
+    
+    // Copy constructor
+    ofxSCBus(const ofxSCBus& other);
+
+    // Copy assignment operator
+    ofxSCBus& operator=(const ofxSCBus& other);
+
+    // Move constructor
+    ofxSCBus(ofxSCBus&& other) noexcept;
+
+    // Move assignment operator
+    ofxSCBus& operator=(ofxSCBus&& other) noexcept;
 	
     void set(float value);
 	void free();
