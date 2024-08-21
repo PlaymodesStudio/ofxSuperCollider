@@ -161,6 +161,33 @@ void ofxSCSynth::setMultiple(std::string arg, int value, int quantity){
     }
 }
 
+void ofxSCSynth::mapa(std::string arg, int value){
+    if (created)
+    {
+        ofxOscMessage m;
+        m.setAddress("/n_mapa");
+        m.addIntArg(nodeID);
+        m.addStringArg(arg);
+        m.addIntArg(value);
+        
+        server->sendMsg(m);
+    }
+}
+
+void ofxSCSynth::mapan(std::string arg, int value, int quantity){
+    if (created)
+    {
+        ofxOscMessage m;
+        m.setAddress("/n_mapan");
+        m.addIntArg(nodeID);
+        m.addStringArg(arg);
+        m.addIntArg(value);
+        m.addIntArg(quantity);
+        
+        server->sendMsg(m);
+    }
+}
+
 ofxOscMessage ofxSCSynth::setMessage(std::string arg, double value)
 {
     ofxOscMessage m;
