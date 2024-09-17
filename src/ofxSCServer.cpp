@@ -36,6 +36,8 @@ ofxSCServer::ofxSCServer(std::string hostname, unsigned int port)
 	
 	if (plocal == 0)
 		plocal = this;
+    
+    waitToSend = false;
 }
 
 ofxSCServer::~ofxSCServer()
