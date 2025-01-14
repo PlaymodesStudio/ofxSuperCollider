@@ -15,9 +15,10 @@
 #include "ofxSCBuffer.h"
 #include "ofxOsc.h"
 
-#define LISTEN_PORT 57150
 #define MILISECONDS_FROM_1900_to_1970 2208988800000ULL
 #define TWO_TO_THE_32_OVER_ONE_MILLION 4295
+
+#define MAX_NOTIFIES_WITHOUT_REPLY 12
 
 ofxSCServer *ofxSCServer::plocal = NULL;
 
@@ -26,8 +27,7 @@ ofxSCServer::ofxSCServer(std::string hostname, unsigned int port)
 	this->hostname = hostname;
 	this->port = port;
 
-	
-	osc.setup(hostname, port, LISTEN_PORT);
+    osc.setup(hostname, port, port+20);
     listener = ofEvents().update.newListener(this, &ofxSCServer::_process);
 	
 	allocatorBusAudio = new ofxSCResourceAllocator(4096);
@@ -43,6 +43,10 @@ ofxSCServer::ofxSCServer(std::string hostname, unsigned int port)
     
     latency = 0.2;
     b_latency = false;
+    
+    booted = false;
+    initialized = false;
+    numNotifies = 0;
 }
 
 ofxSCServer::~ofxSCServer()
@@ -67,6 +71,10 @@ void ofxSCServer::_process(ofEventArgs &e)
 
 void ofxSCServer::process()
 {
+    ofxOscMessage m;
+    m.setAddress("/status");
+    osc.sendMessage(m);
+    if(booted) numNotifies++;
 	
 //#ifdef _ofxOscSENDERRECEIVER_H
 
@@ -76,6 +84,24 @@ void ofxSCServer::process()
 		osc.getNextMessage(m);
 //		printf("** got OSC! %s\n", m.getAddress().c_str());
 //        ofLog() << m;
+        
+        if (m.getAddress() == "/status.reply"){
+            if(!booted){
+                booted = true;
+                serverBootedEvent.notify(this);
+                numNotifies = 0;
+            }else{
+                if(numNotifies > MAX_NOTIFIES_WITHOUT_REPLY){
+                    booted = false;
+                    initialized = false;
+                    ofLog() << "Detected killed server";
+                }
+                numNotifies--;
+            }
+        }
+//        else if(m.getAddress())
+//            ofLog() << m.getAddress();
+//        }
 		
 		/*-----------------------------------------------------------------------------
 		 * /done
@@ -83,7 +109,11 @@ void ofxSCServer::process()
 		 /*---------------------------------------------------------------------------*/
 		if (m.getAddress() == "/done")
 		{
-//			std::string cmd = m.getArgAsString(0);
+			std::string cmd = m.getArgAsString(0);
+            if(cmd == "/d_loadDir"){
+                initialized = true;
+                serverInitializedEvent.notify(this);
+            }
 //			int index = m.getArgAsInt32(1);
 //			printf("** buffer read completed, ID %d\n", index);
 //			buffers[index]->ready = true;

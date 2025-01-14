@@ -54,6 +54,9 @@ public:
     ofxSCBus *controlBusses[4096];
     ofxSCBus *audioBusses[65536];
     
+    ofEvent<void> serverBootedEvent;
+    ofEvent<void> serverInitializedEvent;
+    
 protected:
 
 	ofxOscSenderReceiver   osc;
@@ -69,6 +72,11 @@ protected:
     
     float latency;
     bool b_latency;
+    
+    bool booted;
+    bool initialized;
+    
+    int numNotifies;
     
 private:
     uint64_t getNowTimetag(float latency = 0);
