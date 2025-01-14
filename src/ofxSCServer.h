@@ -41,6 +41,9 @@ public:
     void setWaitToSend(bool b);
     bool getWaitToSend();
     void sendStoredBundle();
+    
+    void setLatency(float _latency){latency = _latency;};
+    void setBLatency(bool b){b_latency = b;};
 	
 	ofxSCResourceAllocator *allocatorBusAudio;
 	ofxSCResourceAllocator *allocatorBusControl;
@@ -63,5 +66,11 @@ protected:
 	static ofxSCServer *plocal;
 	std::string hostname;
 	unsigned int port;
+    
+    float latency;
+    bool b_latency;
+    
+private:
+    uint64_t getNowTimetag(float latency = 0);
 };
 

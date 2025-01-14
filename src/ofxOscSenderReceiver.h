@@ -58,10 +58,10 @@ public:
 
     /// send the given message
     /// if wrapInBundle is true (default), message sent in a timetagged bundle
-    void sendMessage(const ofxOscMessage &message, bool wrapInBundle=false);
+    void sendMessage(const ofxOscMessage &message, bool wrapInBundle=false, uint64_t timetag = 1);
 
     /// send the given bundle
-    void sendBundle(const ofxOscBundle &bundle);
+    void sendBundle(const ofxOscBundle &bundle, uint64_t timetag = 1);
 
     /// create & send a message with data from an ofParameter
     void sendParameter(const ofAbstractParameter &parameter);

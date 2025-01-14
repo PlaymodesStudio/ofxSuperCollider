@@ -146,7 +146,7 @@ void ofxOscSenderReceiver::clear(){
 }
 
 //--------------------------------------------------------------
-void ofxOscSenderReceiver::sendBundle(const ofxOscBundle &bundle){
+void ofxOscSenderReceiver::sendBundle(const ofxOscBundle &bundle, uint64_t timetag){
     if(!sendSocket){
         ofLogError("ofxOscSender") << "trying to send with empty socket";
         return;
@@ -159,12 +159,14 @@ void ofxOscSenderReceiver::sendBundle(const ofxOscBundle &bundle){
     osc::OutboundPacketStream p(buffer, OUTPUT_BUFFER_SIZE);
 
     // serialise the bundle and send
+    p << osc::BundleInitiator(timetag);
     appendBundle(bundle, p);
+    p << osc::EndBundle;
     sendSocket->Send(p.Data(), p.Size());
 }
 
 //--------------------------------------------------------------
-void ofxOscSenderReceiver::sendMessage(const ofxOscMessage &message, bool wrapInBundle){
+void ofxOscSenderReceiver::sendMessage(const ofxOscMessage &message, bool wrapInBundle, uint64_t timetag){
     if(!sendSocket){
         ofLogError("ofxOscSender") << "trying to send with empty socket";
         return;
@@ -178,7 +180,7 @@ void ofxOscSenderReceiver::sendMessage(const ofxOscMessage &message, bool wrapIn
 
     // serialise the message and send
     if(wrapInBundle) {
-        p << osc::BeginBundleImmediate;
+        p << osc::BundleInitiator(timetag);
     }
     appendMessage(message, p);
     if(wrapInBundle) {

@@ -16,6 +16,8 @@
 #include "ofxOsc.h"
 
 #define LISTEN_PORT 57150
+#define MILISECONDS_FROM_1900_to_1970 2208988800000ULL
+#define TWO_TO_THE_32_OVER_ONE_MILLION 4295
 
 ofxSCServer *ofxSCServer::plocal = NULL;
 
@@ -38,6 +40,9 @@ ofxSCServer::ofxSCServer(std::string hostname, unsigned int port)
 		plocal = this;
     
     waitToSend = false;
+    
+    latency = 0.2;
+    b_latency = false;
 }
 
 ofxSCServer::~ofxSCServer()
@@ -126,7 +131,7 @@ void ofxSCServer::notify()
 	ofxOscMessage m;
 	m.setAddress("/notify");
 	m.addIntArg(1);
-	osc.sendMessage(m);
+	osc.sendMessage(m, true);
 }
 
 void ofxSCServer::sendMsg(ofxOscMessage& m)
@@ -135,7 +140,7 @@ void ofxSCServer::sendMsg(ofxOscMessage& m)
     if(waitToSend){
         toSendBundle.addMessage(m);
     }else{
-        osc.sendMessage(m);
+        osc.sendMessage(m, true, b_latency ? getNowTimetag(latency) : 1);
     }
 }
 
@@ -147,7 +152,7 @@ void ofxSCServer::sendBundle(ofxOscBundle& b)
             toSendBundle.addMessage(b.getMessageAt(i));
         }
     }else{
-        osc.sendBundle(b);
+        osc.sendBundle(b, b_latency ? getNowTimetag(latency) : 1);
     }
 }
 
@@ -163,4 +168,19 @@ bool ofxSCServer::getWaitToSend(){
 void ofxSCServer::sendStoredBundle(){
     osc.sendBundle(toSendBundle);
     toSendBundle.clear();
+}
+
+uint64_t ofxSCServer::getNowTimetag(float latency){
+    auto now = std::chrono::system_clock::now();
+    auto unix_time = now.time_since_epoch();
+    // Add latency (convert seconds to nanoseconds and add)
+    auto latency_duration = std::chrono::duration<double>(latency);
+    std::chrono::duration unix_time_mod = unix_time + std::chrono::duration_cast<std::chrono::nanoseconds>(latency_duration);
+    
+    //https://github.com/juce-framework/JUCE/blob/master/modules/juce_osc/osc/juce_OSCTimeTag.cpp
+    const uint64_t milliseconds = (uint64_t) std::chrono::duration_cast<std::chrono::milliseconds>(unix_time_mod).count() + MILISECONDS_FROM_1900_to_1970;
+    uint64_t seconds = milliseconds / 1000;
+    uint32_t fractionalPart = uint32_t (4294967.296 * (milliseconds % 1000));
+    
+    return (seconds << 32) + fractionalPart;
 }
