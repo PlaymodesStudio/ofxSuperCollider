@@ -30,7 +30,7 @@ ofxSCServer::ofxSCServer(std::string hostname, unsigned int port)
     osc.setup(hostname, port, port+20);
     listener = ofEvents().update.newListener(this, &ofxSCServer::_process);
 	
-	allocatorBusAudio = new ofxSCResourceAllocator(4096);
+	allocatorBusAudio = new ofxSCResourceAllocator(65536);
 	allocatorBusAudio->pos = 64;
 	
 	allocatorBusControl = new ofxSCResourceAllocator(4096);

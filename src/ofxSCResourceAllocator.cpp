@@ -22,8 +22,8 @@ ofxSCResourceAllocator::ofxSCResourceAllocator(int capacity)
 	for (int i = 0; i < capacity; i++)
 		this->resources[i] = NULL;
 						
-	this->free_lists.resize(4096);
-	for (int i = 0; i < 4096; i++)
+	this->free_lists.resize(65536);
+	for (int i = 0; i < 65536; i++)
 		this->free_lists[i] = NULL;
 }
 
