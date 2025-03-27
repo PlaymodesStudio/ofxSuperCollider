@@ -18,7 +18,7 @@ ofxSCSynth::ofxSCSynth(std::string name, ofxSCServer *server)
 	ofxSCNode();
 	
 	this->name = name;
-	this->server = server;
+    setServer(server);
 }
 
 ofxSCSynth::~ofxSCSynth()
@@ -54,8 +54,8 @@ void ofxSCSynth::create(int position, int groupID)
 		b.addMessage(m);
 	}
 
-	server->sendBundle(b);
 	
+    server->sendBundle(b);
 	created = true;
 }
 
@@ -77,7 +77,7 @@ void ofxSCSynth::set(std::string arg, double value)
 		m.addStringArg(arg);
 		m.addFloatArg(value);
 		
-		server->sendMsg(m);
+        getServer()->sendMsg(m);
 	}
 }
 
@@ -93,7 +93,7 @@ void ofxSCSynth::set(std::string arg, int value)
 		m.addStringArg(arg);
 		m.addIntArg(value);
 		
-		server->sendMsg(m);
+        getServer()->sendMsg(m);
 	}
 }
 
@@ -110,7 +110,7 @@ void ofxSCSynth::set(std::string arg, std::vector<float> values)
         m.addIntArg(values.size());
         for(auto &v : values) m.addFloatArg(v);
         
-        server->sendMsg(m);
+        getServer()->sendMsg(m);
     }
 }
 
@@ -127,7 +127,7 @@ void ofxSCSynth::set(std::string arg, std::vector<int> values)
         m.addIntArg(values.size());
         for(auto &v : values) m.addIntArg(v);
         
-        server->sendMsg(m);
+        getServer()->sendMsg(m);
     }
 }
 
@@ -142,7 +142,7 @@ void ofxSCSynth::setMultiple(std::string arg, float value, int quantity){
         m.addFloatArg(value);
         m.addFloatArg(value);
 
-        server->sendMsg(m);
+		getServer()->sendMsg(m);
     }
 }
 
@@ -157,7 +157,7 @@ void ofxSCSynth::setMultiple(std::string arg, int value, int quantity){
         m.addIntArg(value);
         m.addIntArg(value);
         
-        server->sendMsg(m);
+		getServer()->sendMsg(m);
     }
 }
 
@@ -170,7 +170,7 @@ void ofxSCSynth::mapa(std::string arg, int value){
         m.addStringArg(arg);
         m.addIntArg(value);
         
-        server->sendMsg(m);
+		getServer()->sendMsg(m);
     }
 }
 
@@ -184,7 +184,7 @@ void ofxSCSynth::mapan(std::string arg, int value, int quantity){
         m.addIntArg(value);
         m.addIntArg(quantity);
         
-        server->sendMsg(m);
+		getServer()->sendMsg(m);
     }
 }
 

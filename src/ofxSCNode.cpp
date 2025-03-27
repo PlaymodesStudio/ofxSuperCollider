@@ -20,7 +20,8 @@ ofxSCNode::ofxSCNode()
 {
 	nodeID = 0;
 	created = false;
-	server = ofxSCServer::local();
+    server = nullptr;
+    setServer(ofxSCServer::local());
 }
 
 ofxSCNode::~ofxSCNode()
@@ -101,4 +102,16 @@ void ofxSCNode::moveAfter(int _nodeID){
     m.addIntArg(_nodeID);
     
     server->sendMsg(m);
+}
+
+void ofxSCNode::setServer(ofxSCServer *_server){
+    if(server != nullptr)
+        server->removeNodeListener(this);
+
+    server = _server;
+    server->addNodeListener(this);
+}
+
+ofxSCServer* ofxSCNode::getServer(){
+    return server;
 }

@@ -51,9 +51,13 @@ public:
 	int nodeID;
 		
 protected:
+    
+    void setServer(ofxSCServer *_server);
+    ofxSCServer* getServer();
 
 	bool created;
-	
-	ofxSCServer *server;
-
+    
+private:
+    
+    ofxSCServer *server;
 };
