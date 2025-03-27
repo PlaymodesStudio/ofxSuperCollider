@@ -49,6 +49,9 @@ public:
 	
 	// can't use 'id' as a keyword when mixing with objective-c!
 	int nodeID;
+    
+    void feedbackListener(ofxOscMessage &msg);
+    virtual void resendStoredArgs(){};
 		
 protected:
     

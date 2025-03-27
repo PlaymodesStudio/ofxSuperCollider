@@ -21,6 +21,7 @@
 
 class ofxSCBuffer;
 class ofxSCBus;
+class ofxSCNode;
 
 
 class ofxSCServer
@@ -57,10 +58,16 @@ public:
     ofEvent<void> serverBootedEvent;
     ofEvent<void> serverInitializedEvent;
     
+    void addNodeListener(ofxSCNode* node);
+    void removeNodeListener(ofxSCNode* node);
+    
+    ofEvent<ofxOscMessage> newFeedbackMessage;
+    
 protected:
 
 	ofxOscSenderReceiver   osc;
     ofEventListener listener;
+    std::map<ofxSCNode*, ofEventListener> nodeListeners;
     
     bool waitToSend;
     

@@ -104,6 +104,25 @@ void ofxSCNode::moveAfter(int _nodeID){
     server->sendMsg(m);
 }
 
+void ofxSCNode::feedbackListener(ofxOscMessage &msg){
+    if(msg.getAddress() == "/n_go"){
+        created = true;
+        resendStoredArgs();
+    }else if(msg.getAddress() == "/n_end"){
+        created = false;
+    }else if(msg.getAddress() == "/n_off"){
+        
+    }else if(msg.getAddress() == "/n_on"){
+        
+    }else if(msg.getAddress() == "/n_move"){
+        
+    }else if(msg.getAddress() == "/n_info"){
+        
+	}else if(msg.getAddress() == "/tr"){
+		
+	}
+}
+
 void ofxSCNode::setServer(ofxSCServer *_server){
     if(server != nullptr)
         server->removeNodeListener(this);

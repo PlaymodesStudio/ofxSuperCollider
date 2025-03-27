@@ -14,6 +14,7 @@
 #include "ofxSCServer.h"
 #include "ofxSCBuffer.h"
 #include "ofxOsc.h"
+#include "ofxSCNode.h"
 
 #define MILISECONDS_FROM_1900_to_1970 2208988800000ULL
 #define TWO_TO_THE_32_OVER_ONE_MILLION 4295
@@ -102,6 +103,10 @@ void ofxSCServer::process()
 //        else if(m.getAddress())
 //            ofLog() << m.getAddress();
 //        }
+        //Node Notifications from server (n_go, n_end...)
+        //And Poll replies from synths
+        else if(m.getAddress()[1] == 'n' || m.getAddress() == "/tr")
+            newFeedbackMessage.notify(m);
 		
 		/*-----------------------------------------------------------------------------
 		 * /done
@@ -198,6 +203,18 @@ bool ofxSCServer::getWaitToSend(){
 void ofxSCServer::sendStoredBundle(){
     osc.sendBundle(toSendBundle);
     toSendBundle.clear();
+}
+
+void ofxSCServer::addNodeListener(ofxSCNode* node){
+    nodeListeners[node] = newFeedbackMessage.newListener([node](ofxOscMessage &msg){
+        if(node->nodeID == msg.getArgAsInt(0))
+            node->feedbackListener(msg);
+    });
+}
+
+void ofxSCServer::removeNodeListener(ofxSCNode *node){
+    nodeListeners[node].unsubscribe();
+    nodeListeners.erase(node);
 }
 
 uint64_t ofxSCServer::getNowTimetag(float latency){
