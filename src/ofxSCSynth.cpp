@@ -27,7 +27,6 @@ ofxSCSynth::~ofxSCSynth()
 
 void ofxSCSynth::create(int position, int groupID)
 {
-	ofxOscBundle b;
 	ofxOscMessage m;
 
 	if (nodeID == 0)
@@ -38,7 +37,6 @@ void ofxSCSynth::create(int position, int groupID)
 	m.addIntArg(nodeID);
 	m.addIntArg(position);
 	m.addIntArg(groupID);
-	b.addMessage(m);
 	
 	for (dictionary::const_iterator it = args.begin(); 
         it != args.end(); ++it)
@@ -46,17 +44,62 @@ void ofxSCSynth::create(int position, int groupID)
 		std::string key = it->first;
 		float value = it->second;
 
-		m.clear();
-		m.setAddress("/n_set");
-		m.addIntArg(nodeID);
 		m.addStringArg(key.c_str());
 		m.addFloatArg(value);
-		b.addMessage(m);
 	}
-
-	
-    server->sendBundle(b);
-	created = true;
+    args.clear();
+    
+    for (vecDictionary::const_iterator it = vecArgs.begin();
+         it != vecArgs.end(); ++it)
+    {
+        std::string key = it->first;
+        std::vector<float> value = it->second;
+        
+        m.addStringArg(key.c_str());
+        m.addCharArg('[');
+        for(auto &v : value) m.addFloatArg(v);
+        m.addCharArg(']');
+    }
+    vecArgs.clear();
+    
+    for (strDictionary::const_iterator it = strArgs.begin();
+         it != strArgs.end(); ++it)
+    {
+        std::string key = it->first;
+        std::string value = it->second;
+        
+        m.addStringArg(key.c_str());
+        m.addStringArg(value.c_str());
+    }
+    strArgs.clear();
+    
+    for (vecStrDictionary::const_iterator it = vecStrArgs.begin();
+         it != vecStrArgs.end(); ++it)
+    {
+        std::string key = it->first;
+        std::vector<std::string> value = it->second;
+        
+        m.addStringArg(key.c_str());
+        m.addCharArg('[');
+        for(auto &v : value) m.addStringArg(v);
+        m.addCharArg(']');
+    }
+    vecStrArgs.clear();
+    
+    for (mapaDictionary::const_iterator it = mapaArgs.begin();
+         it != mapaArgs.end(); it++)
+    {
+        std::string key = it->first;
+        std::pair<int, int> value = it->second;
+        
+        m.addStringArg(key.c_str());
+        m.addCharArg('[');
+        for(int i = 0; i < value.second; i++) m.addStringArg("a" + ofToString(value.first));
+        m.addCharArg(']');
+    }
+    mapaArgs.clear();
+    
+    getServer()->sendMsg(m);
 }
 
 void ofxSCSynth::grain(int position, int groupID)
@@ -67,8 +110,6 @@ void ofxSCSynth::grain(int position, int groupID)
 
 void ofxSCSynth::set(std::string arg, double value)
 {
-	args.insert(dictionary::value_type(arg, value));
-	
 	if (created)
 	{
 		ofxOscMessage m;
@@ -79,11 +120,14 @@ void ofxSCSynth::set(std::string arg, double value)
 		
         getServer()->sendMsg(m);
 	}
+    else
+    {
+        args[arg] = value;
+    }
 }
 
 void ofxSCSynth::set(std::string arg, int value)
 {
-	args.insert(dictionary::value_type(arg, value));
 	
 	if (created)
 	{
@@ -95,12 +139,15 @@ void ofxSCSynth::set(std::string arg, int value)
 		
         getServer()->sendMsg(m);
 	}
+    else
+    {
+        args[arg] = value;
+    }
 }
 
 void ofxSCSynth::set(std::string arg, std::vector<float> values)
 {
-    //args.insert(dictionary::value_type(arg, values));
-    
+   
     if (created)
     {
         ofxOscMessage m;
@@ -111,13 +158,15 @@ void ofxSCSynth::set(std::string arg, std::vector<float> values)
         for(auto &v : values) m.addFloatArg(v);
         
         getServer()->sendMsg(m);
+	}
+    else
+    {
+        vecArgs[arg] = values;
     }
 }
 
 void ofxSCSynth::set(std::string arg, std::vector<int> values)
 {
-    //args.insert(dictionary::value_type(arg, values));
-    
     if (created)
     {
         ofxOscMessage m;
@@ -128,6 +177,10 @@ void ofxSCSynth::set(std::string arg, std::vector<int> values)
         for(auto &v : values) m.addIntArg(v);
         
         getServer()->sendMsg(m);
+	}
+    else
+    {
+        vecArgs[arg] = std::vector<float>(values.begin(), values.end());
     }
 }
 
@@ -143,6 +196,10 @@ void ofxSCSynth::setMultiple(std::string arg, float value, int quantity){
         m.addFloatArg(value);
 
 		getServer()->sendMsg(m);
+	}
+    else
+    {
+        vecArgs[arg] = std::vector<float>(quantity, value);
     }
 }
 
@@ -158,6 +215,10 @@ void ofxSCSynth::setMultiple(std::string arg, int value, int quantity){
         m.addIntArg(value);
         
 		getServer()->sendMsg(m);
+	}
+    else
+    {
+        vecArgs[arg] = std::vector<float>(quantity, value);
     }
 }
 
@@ -171,6 +232,10 @@ void ofxSCSynth::mapa(std::string arg, int value){
         m.addIntArg(value);
         
 		getServer()->sendMsg(m);
+	}
+    else
+    {
+        mapaArgs[arg] = std::make_pair(value, 1);
     }
 }
 
@@ -185,6 +250,10 @@ void ofxSCSynth::mapan(std::string arg, int value, int quantity){
         m.addIntArg(quantity);
         
 		getServer()->sendMsg(m);
+	}
+    else
+    {
+        mapaArgs[arg] = std::make_pair(value, quantity);
     }
 }
 

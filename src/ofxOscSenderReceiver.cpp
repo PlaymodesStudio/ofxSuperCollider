@@ -275,7 +275,13 @@ void ofxOscSenderReceiver::appendMessage(const ofxOscMessage &message, osc::Outb
                 p << osc::Symbol(message.getArgAsString(i).c_str());
                 break;
             case OFXOSC_TYPE_CHAR:
-                p << message.getArgAsChar(i);
+                if(message.getArgAsChar(i) == '['){
+                    p << osc::ArrayInitiator();
+                }else if(message.getArgAsChar(i) == ']'){
+                    p << osc::ArrayTerminator();
+                }else{
+                    p << message.getArgAsChar(i);
+                }
                 break;
             case OFXOSC_TYPE_MIDI_MESSAGE:
                 p << osc::MidiMessage(message.getArgAsMidiMessage(i));

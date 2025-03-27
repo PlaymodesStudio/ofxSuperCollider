@@ -21,6 +21,10 @@
 #include "ofxSCNode.h"
 
 typedef std::unordered_map<std::string, float> dictionary;
+typedef std::unordered_map<std::string, std::vector<float>> vecDictionary;
+typedef std::unordered_map<std::string, std::string> strDictionary;
+typedef std::unordered_map<std::string, std::vector<std::string>> vecStrDictionary;
+typedef std::unordered_map<std::string, std::pair<int, int>> mapaDictionary;
 
 class ofxSCSynth : public ofxSCNode
 {
@@ -59,4 +63,9 @@ protected:
 
 	std::string name;
 	dictionary args;
+    vecDictionary vecArgs;
+    strDictionary strArgs;
+    vecStrDictionary vecStrArgs;
+    mapaDictionary mapaArgs;
+    std::vector<ofxOscMessage> queuedMessages;
 };
