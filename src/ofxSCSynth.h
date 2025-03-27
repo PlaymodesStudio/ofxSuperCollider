@@ -58,6 +58,8 @@ public:
     ofxOscMessage setMessage(std::string arg, int value);
     ofxOscMessage setMessage(std::string arg, std::vector<float> values);
     ofxOscMessage setMessage(std::string arg, std::vector<int> values);
+    
+    void resendStoredArgs();
 		
 protected:
 

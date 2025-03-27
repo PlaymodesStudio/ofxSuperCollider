@@ -302,3 +302,92 @@ ofxOscMessage ofxSCSynth::setMessage(std::string arg, std::vector<int> values)
     
     return m;
 }
+
+void ofxSCSynth::resendStoredArgs(){
+    ofxOscMessage m;
+    ofxOscMessage m_mapa;
+    ofxOscMessage m_mapan;
+    
+    m.setAddress("/n_set");
+    m.addIntArg(nodeID);
+    
+    m_mapa.setAddress("/n_mapa");
+    m_mapa.addIntArg(nodeID);
+    
+    m_mapan.setAddress("/n_mapan");
+    m_mapan.addIntArg(nodeID);
+    
+    for (dictionary::const_iterator it = args.begin();
+        it != args.end(); ++it)
+    {
+        std::string key = it->first;
+        float value = it->second;
+
+        m.addStringArg(key.c_str());
+        m.addFloatArg(value);
+    }
+    args.clear();
+    
+    for (vecDictionary::const_iterator it = vecArgs.begin();
+         it != vecArgs.end(); ++it)
+    {
+        std::string key = it->first;
+        std::vector<float> value = it->second;
+        
+        m.addStringArg(key.c_str());
+        m.addCharArg('[');
+        for(auto &v : value) m.addFloatArg(v);
+        m.addCharArg(']');
+    }
+    vecArgs.clear();
+    
+    for (strDictionary::const_iterator it = strArgs.begin();
+         it != strArgs.end(); ++it)
+    {
+        std::string key = it->first;
+        std::string value = it->second;
+        
+        m.addStringArg(key.c_str());
+        m.addStringArg(value.c_str());
+    }
+    strArgs.clear();
+    
+    for (vecStrDictionary::const_iterator it = vecStrArgs.begin();
+         it != vecStrArgs.end(); ++it)
+    {
+        std::string key = it->first;
+        std::vector<std::string> value = it->second;
+        
+        m.addStringArg(key.c_str());
+        m.addCharArg('[');
+        for(auto &v : value) m.addStringArg(v);
+        m.addCharArg(']');
+    }
+    vecStrArgs.clear();
+    
+    for (mapaDictionary::const_iterator it = mapaArgs.begin();
+         it != mapaArgs.end(); it++)
+    {
+        std::string key = it->first;
+        std::pair<int, int> value = it->second;
+        
+        if(value.second == 1){
+            m_mapa.addStringArg(key.c_str());
+            m_mapa.addIntArg(value.second);
+        }else{
+            m_mapan.addStringArg(key.c_str());
+            m_mapan.addIntArg(value.first);
+            m_mapan.addIntArg(value.second);
+        }
+    }
+    mapaArgs.clear();
+    
+    ofxOscBundle b;
+    if(m.getNumArgs() > 1) b.addMessage(m);
+    if(m_mapa.getNumArgs() > 1) b.addMessage(m_mapa);
+    if(m_mapan.getNumArgs() > 1) b.addMessage(m_mapan);
+
+    if(b.getMessageCount() > 0){
+        getServer()->sendBundle(b);
+    }
+}
