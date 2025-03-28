@@ -94,7 +94,7 @@ void ofxSCSynth::create(int position, int groupID)
         
         m.addStringArg(key.c_str());
         m.addCharArg('[');
-        for(int i = 0; i < value.second; i++) m.addStringArg("a" + ofToString(value.first));
+        for(int i = 0; i < value.second; i++) m.addStringArg("a" + ofToString(value.first + i));
         m.addCharArg(']');
     }
     mapaArgs.clear();
