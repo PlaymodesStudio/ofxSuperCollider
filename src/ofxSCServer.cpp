@@ -27,8 +27,8 @@ ofxSCServer::ofxSCServer(std::string hostname, unsigned int port)
 	this->hostname = hostname;
 	this->port = port;
 
-    osc.setup(hostname, port, port+20);
-    listener = ofEvents().update.newListener(this, &ofxSCServer::_process);
+	osc.setup(hostname, port, port+20);
+	listener = ofEvents().update.newListener(this, &ofxSCServer::_process);
 	
 	allocatorBusAudio = new ofxSCResourceAllocator(65536);
 	allocatorBusAudio->pos = 64;
@@ -38,15 +38,15 @@ ofxSCServer::ofxSCServer(std::string hostname, unsigned int port)
 	
 	if (plocal == 0)
 		plocal = this;
-    
-    waitToSend = false;
-    
-    latency = 0.2;
-    b_latency = false;
-    
-    booted = false;
-    initialized = false;
-    numNotifies = 0;
+	
+	waitToSend = false;
+	
+	latency = 0.2;
+	b_latency = false;
+	
+	booted = false;
+	initialized = false;
+	numNotifies = 0;
 }
 
 ofxSCServer::~ofxSCServer()
@@ -71,10 +71,10 @@ void ofxSCServer::_process(ofEventArgs &e)
 
 void ofxSCServer::process()
 {
-    ofxOscMessage m;
-    m.setAddress("/status");
-    osc.sendMessage(m);
-    if(booted) numNotifies++;
+	ofxOscMessage m;
+	m.setAddress("/status");
+	osc.sendMessage(m);
+	if(booted) numNotifies++;
 	
 //#ifdef _ofxOscSENDERRECEIVER_H
 
@@ -84,21 +84,21 @@ void ofxSCServer::process()
 		osc.getNextMessage(m);
 //		printf("** got OSC! %s\n", m.getAddress().c_str());
 //        ofLog() << m;
-        
-        if (m.getAddress() == "/status.reply"){
-            if(!booted){
-                booted = true;
-                serverBootedEvent.notify(this);
-                numNotifies = 0;
-            }else{
-                if(numNotifies > MAX_NOTIFIES_WITHOUT_REPLY){
-                    booted = false;
-                    initialized = false;
-                    ofLog() << "Detected killed server";
-                }
-                numNotifies--;
-            }
-        }
+		
+		if (m.getAddress() == "/status.reply"){
+			if(!booted){
+				booted = true;
+				serverBootedEvent.notify(this);
+				numNotifies = 0;
+			}else{
+				if(numNotifies > MAX_NOTIFIES_WITHOUT_REPLY){
+					booted = false;
+					initialized = false;
+					ofLog() << "Detected killed server";
+				}
+				numNotifies--;
+			}
+		}
 //        else if(m.getAddress())
 //            ofLog() << m.getAddress();
 //        }
@@ -110,10 +110,10 @@ void ofxSCServer::process()
 		if (m.getAddress() == "/done")
 		{
 			std::string cmd = m.getArgAsString(0);
-            if(cmd == "/d_loadDir"){
-                initialized = true;
-                serverInitializedEvent.notify(this);
-            }
+			if(cmd == "/d_loadDir"){
+				initialized = true;
+				serverInitializedEvent.notify(this);
+			}
 //			int index = m.getArgAsInt32(1);
 //			printf("** buffer read completed, ID %d\n", index);
 //			buffers[index]->ready = true;
@@ -129,23 +129,56 @@ void ofxSCServer::process()
 			buffers[index]->frames = m.getArgAsInt32(1);
 			buffers[index]->channels = m.getArgAsInt32(2);
 			buffers[index]->sampleRate = m.getArgAsFloat(3);
-			buffers[index]->ready = true;			
+			buffers[index]->ready = true;
 		}
 		
 		// buffer alloc/read failed
 		else if (m.getAddress() == "/fail")
 		{
 		}
-        
-        else if (m.getAddress() == "/c_set"){
-            int firstIndex = m.getArgAsInt32(0);
-            for(int i = 0; i < m.getNumArgs(); i+=2){
-                int index = m.getArgAsInt32(i);
-                if(controlBusses[firstIndex] != NULL){
-                    controlBusses[firstIndex]->readValues[index-firstIndex] = m.getArgAsFloat(i+1);
-                }
-            }
-        }
+		
+		else if (m.getAddress() == "/c_set"){
+			int firstIndex = m.getArgAsInt32(0);
+			for(int i = 0; i < m.getNumArgs(); i+=2){
+				int index = m.getArgAsInt32(i);
+				if(controlBusses[firstIndex] != NULL){
+					controlBusses[firstIndex]->readValues[index-firstIndex] = m.getArgAsFloat(i+1);
+				}
+			}
+		}
+		
+		/*-----------------------------------------------------------------------------
+		 * VST Parameter Messages
+		 * /vst_param - Parameter changed state
+		 * /vst_auto - Parameter automated in GUI
+		 /*---------------------------------------------------------------------------*/
+		else if (m.getAddress() == "/vst_param")
+		{
+			
+			if (m.getNumArgs() >= 4) {
+				VSTParameterEvent event;
+				event.nodeID = m.getArgAsInt32(0);
+				event.synthIndex = m.getArgAsInt32(1);
+				event.parameterIndex = (int)m.getArgAsFloat(2);
+				event.value = m.getArgAsFloat(3);
+				
+				vstParameterChanged.notify(event);
+			}
+		}
+		
+		else if (m.getAddress() == "/vst_auto")
+		{
+			if (m.getNumArgs() >= 4) {
+				VSTParameterEvent event;
+				event.nodeID = m.getArgAsInt32(0);
+				event.synthIndex = m.getArgAsInt32(1);
+				event.parameterIndex = (int)m.getArgAsFloat(2);
+				event.value = m.getArgAsFloat(3);
+				event.name = ""; // Auto messages don't include name
+				
+				vstParameterAutomated.notify(event);
+			}
+		}
 	}
 	
 //#else
@@ -166,51 +199,51 @@ void ofxSCServer::notify()
 
 void ofxSCServer::sendMsg(ofxOscMessage& m)
 {
-    if(toSendBundle.getMessageCount() > 1000) sendStoredBundle();
-    if(waitToSend){
-        toSendBundle.addMessage(m);
-    }else{
-        osc.sendMessage(m, true, b_latency ? getNowTimetag(latency) : 1);
-    }
+	if(toSendBundle.getMessageCount() > 1000) sendStoredBundle();
+	if(waitToSend){
+		toSendBundle.addMessage(m);
+	}else{
+		osc.sendMessage(m, true, b_latency ? getNowTimetag(latency) : 1);
+	}
 }
 
 void ofxSCServer::sendBundle(ofxOscBundle& b)
 {
-    if(toSendBundle.getMessageCount() > (1000-b.getMessageCount())) sendStoredBundle();
-    if(waitToSend){
-        for(int i = 0; i < b.getMessageCount(); i++){
-            toSendBundle.addMessage(b.getMessageAt(i));
-        }
-    }else{
-        osc.sendBundle(b, b_latency ? getNowTimetag(latency) : 1);
-    }
+	if(toSendBundle.getMessageCount() > (1000-b.getMessageCount())) sendStoredBundle();
+	if(waitToSend){
+		for(int i = 0; i < b.getMessageCount(); i++){
+			toSendBundle.addMessage(b.getMessageAt(i));
+		}
+	}else{
+		osc.sendBundle(b, b_latency ? getNowTimetag(latency) : 1);
+	}
 }
 
 void ofxSCServer::setWaitToSend(bool b){
-    waitToSend = b;
-    toSendBundle.clear();
+	waitToSend = b;
+	toSendBundle.clear();
 }
 
 bool ofxSCServer::getWaitToSend(){
-    return waitToSend;
+	return waitToSend;
 }
 
 void ofxSCServer::sendStoredBundle(){
-    osc.sendBundle(toSendBundle);
-    toSendBundle.clear();
+	osc.sendBundle(toSendBundle);
+	toSendBundle.clear();
 }
 
 uint64_t ofxSCServer::getNowTimetag(float latency){
-    auto now = std::chrono::system_clock::now();
-    auto unix_time = now.time_since_epoch();
-    // Add latency (convert seconds to nanoseconds and add)
-    auto latency_duration = std::chrono::duration<double>(latency);
-    std::chrono::duration unix_time_mod = unix_time + std::chrono::duration_cast<std::chrono::nanoseconds>(latency_duration);
-    
-    //https://github.com/juce-framework/JUCE/blob/master/modules/juce_osc/osc/juce_OSCTimeTag.cpp
-    const uint64_t milliseconds = (uint64_t) std::chrono::duration_cast<std::chrono::milliseconds>(unix_time_mod).count() + MILISECONDS_FROM_1900_to_1970;
-    uint64_t seconds = milliseconds / 1000;
-    uint32_t fractionalPart = uint32_t (4294967.296 * (milliseconds % 1000));
-    
-    return (seconds << 32) + fractionalPart;
+	auto now = std::chrono::system_clock::now();
+	auto unix_time = now.time_since_epoch();
+	// Add latency (convert seconds to nanoseconds and add)
+	auto latency_duration = std::chrono::duration<double>(latency);
+	std::chrono::duration unix_time_mod = unix_time + std::chrono::duration_cast<std::chrono::nanoseconds>(latency_duration);
+	
+	//https://github.com/juce-framework/JUCE/blob/master/modules/juce_osc/osc/juce_OSCTimeTag.cpp
+	const uint64_t milliseconds = (uint64_t) std::chrono::duration_cast<std::chrono::milliseconds>(unix_time_mod).count() + MILISECONDS_FROM_1900_to_1970;
+	uint64_t seconds = milliseconds / 1000;
+	uint32_t fractionalPart = uint32_t (4294967.296 * (milliseconds % 1000));
+	
+	return (seconds << 32) + fractionalPart;
 }
