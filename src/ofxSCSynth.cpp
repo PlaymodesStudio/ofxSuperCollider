@@ -13,7 +13,7 @@
 
 #include "ofxSCSynth.h"
 
-ofxSCSynth::ofxSCSynth(std::string name, ofxSCServer *server) : ofxSCNode(server)
+ofxSCSynth::ofxSCSynth(std::string name, ofxSCServer *_server) : ofxSCNode(_server)
 {
 	this->name = name;
 }

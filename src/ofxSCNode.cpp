@@ -16,12 +16,12 @@
 
 int ofxSCNode::id_base = 2000;
 
-ofxSCNode::ofxSCNode(ofxSCServer *server)
+ofxSCNode::ofxSCNode(ofxSCServer *_server)
 {
 	nodeID = 0;
 	created = false;
     server = nullptr;
-    setServer(ofxSCServer::local());
+    setServer(_server);
 }
 
 ofxSCNode::~ofxSCNode()
