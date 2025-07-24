@@ -100,19 +100,12 @@ void ofxSCServer::process()
                 numNotifies--;
             }
         }
-//        else if(m.getAddress())
-//            ofLog() << m.getAddress();
-//        }
-        //Node Notifications from server (n_go, n_end...)
-        //And Poll replies from synths
-        else if(m.getAddress()[1] == 'n' || m.getAddress() == "/tr")
-            newFeedbackMessage.notify(m);
 		
 		/*-----------------------------------------------------------------------------
 		 * /done
 		 *  - buffer read completed
 		 /*---------------------------------------------------------------------------*/
-		if (m.getAddress() == "/done")
+		else if (m.getAddress() == "/done")
 		{
 			std::string cmd = m.getArgAsString(0);
             if(cmd == "/d_loadDir"){
@@ -150,6 +143,12 @@ void ofxSCServer::process()
                     controlBusses[firstIndex]->readValues[index-firstIndex] = m.getArgAsFloat(i+1);
                 }
             }
+        }
+        
+        //Node Notifications from server (n_go, n_end.., ugen notifications)
+        //And Poll replies from synths
+        else{
+            for(auto &nff : nodeFeedbackFunctions) nff.second(m);
         }
 	}
 	
@@ -206,15 +205,14 @@ void ofxSCServer::sendStoredBundle(){
 }
 
 void ofxSCServer::addNodeListener(ofxSCNode* node){
-    nodeListeners[node] = newFeedbackMessage.newListener([node](ofxOscMessage &msg){
-        if(node->nodeID == msg.getArgAsInt(0))
+    nodeFeedbackFunctions[node] = [node](ofxOscMessage &msg){
+        if(node != nullptr && node->nodeID == msg.getArgAsInt(0))
             node->feedbackListener(msg);
-    });
+    };
 }
 
 void ofxSCServer::removeNodeListener(ofxSCNode *node){
-    nodeListeners[node].unsubscribe();
-    nodeListeners.erase(node);
+    nodeFeedbackFunctions.erase(node);
 }
 
 uint64_t ofxSCServer::getNowTimetag(float latency){

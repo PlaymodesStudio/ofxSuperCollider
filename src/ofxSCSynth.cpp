@@ -13,16 +13,15 @@
 
 #include "ofxSCSynth.h"
 
-ofxSCSynth::ofxSCSynth(std::string name, ofxSCServer *server)
+ofxSCSynth::ofxSCSynth(std::string name, ofxSCServer *server) : ofxSCNode(server)
 {
-	ofxSCNode();
-	
 	this->name = name;
-    setServer(server);
 }
 
 ofxSCSynth::~ofxSCSynth()
 {
+    //If we for example created and freed fast a synth, we want the free message to arrive to the server
+    resendStoredArgs();
 }
 
 void ofxSCSynth::create(int position, int groupID)

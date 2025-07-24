@@ -22,7 +22,7 @@
 class ofxSCGroup : public ofxSCNode
 {
 public:	
-	ofxSCGroup() : ofxSCNode() {}
+	ofxSCGroup(ofxSCServer *server = ofxSCServer::local()) : ofxSCNode(server) {}
     ~ofxSCGroup() { }
 
 	ofxSCGroup (const ofxSCGroup & other) { copy (other); }

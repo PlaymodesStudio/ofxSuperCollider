@@ -22,7 +22,7 @@ class ofxSCGroup;
 class ofxSCNode
 {
 public:	
-	ofxSCNode();
+	ofxSCNode(ofxSCServer *server = ofxSCServer::local());
 	~ofxSCNode();
 	
 	void addToHead(ofxSCGroup group);
@@ -53,6 +53,7 @@ public:
     void feedbackListener(ofxOscMessage &msg);
     virtual void resendStoredArgs(){};
 		
+    ofEvent<ofxOscMessage> newFeedbackMessage;
 protected:
     
     void setServer(ofxSCServer *_server);

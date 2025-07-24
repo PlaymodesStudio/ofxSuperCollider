@@ -67,7 +67,7 @@ protected:
 
 	ofxOscSenderReceiver   osc;
     ofEventListener listener;
-    std::map<ofxSCNode*, ofEventListener> nodeListeners;
+    std::map<ofxSCNode*, std::function<void(ofxOscMessage&)>> nodeFeedbackFunctions;
     
     bool waitToSend;
     

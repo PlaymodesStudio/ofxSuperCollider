@@ -16,7 +16,7 @@
 
 int ofxSCNode::id_base = 2000;
 
-ofxSCNode::ofxSCNode()
+ofxSCNode::ofxSCNode(ofxSCServer *server)
 {
 	nodeID = 0;
 	created = false;
@@ -26,6 +26,7 @@ ofxSCNode::ofxSCNode()
 
 ofxSCNode::~ofxSCNode()
 {
+    setServer(nullptr);
 }
 
 void ofxSCNode::addToHead(ofxSCGroup group)
@@ -53,7 +54,7 @@ void ofxSCNode::free()
 	m.addIntArg(nodeID);
 	server->sendMsg(m);
 	
-	created = false;
+//	created = false;
 }
 
 void ofxSCNode::create(int position, int groupID)
@@ -120,7 +121,9 @@ void ofxSCNode::feedbackListener(ofxOscMessage &msg){
         
 	}else if(msg.getAddress() == "/tr"){
 		
-	}
+    }else{
+        newFeedbackMessage.notify(msg);
+    }
 }
 
 void ofxSCNode::setServer(ofxSCServer *_server){
@@ -128,7 +131,8 @@ void ofxSCNode::setServer(ofxSCServer *_server){
         server->removeNodeListener(this);
 
     server = _server;
-    server->addNodeListener(this);
+    if(server != nullptr)
+        server->addNodeListener(this);
 }
 
 ofxSCServer* ofxSCNode::getServer(){
