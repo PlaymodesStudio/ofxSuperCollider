@@ -135,6 +135,10 @@ void ofxSCServer::process()
 		{
 		}
         
+        else if (m.getAddress() == "/d_removed") //What it does? just one string argument.
+        {
+        }
+        
 		else if (m.getAddress() == "/c_set"){
 			int firstIndex = m.getArgAsInt32(0);
 			for(int i = 0; i < m.getNumArgs(); i+=2){
