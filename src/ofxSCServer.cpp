@@ -171,7 +171,7 @@ void ofxSCServer::process()
 				
 				try {
 					// Validate the bus object itself
-					if(bus->channels <= 0 || bus->channels > 64) { // Reasonable channel limit
+					if(bus->channels <= 0 || bus->channels > 1024) { // Reasonable channel limit
 						ofLogError("ofxSCServer") << "Invalid channel count in control bus: " << bus->channels;
 						continue;
 					}
