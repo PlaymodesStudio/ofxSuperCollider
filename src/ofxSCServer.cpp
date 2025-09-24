@@ -143,88 +143,22 @@ void ofxSCServer::process()
 			int firstIndex = m.getArgAsInt32(0);
 			for(int i = 0; i < m.getNumArgs(); i+=2){
 				int index = m.getArgAsInt32(i);
-				
-				// CRITICAL SAFETY CHECKS before accessing controlBusses array
-				if(firstIndex < 0 || firstIndex >= 4096) {
-					ofLogError("ofxSCServer") << "Invalid firstIndex in /c_set: " << firstIndex;
-					continue;
-				}
-				
-				if(index < 0 || index >= 4096) {
-					ofLogError("ofxSCServer") << "Invalid index in /c_set: " << index;
-					continue;
-				}
-				
-				// Double-check the controlBusses pointer is valid
-				if(controlBusses[firstIndex] == NULL || controlBusses[firstIndex] == nullptr) {
-					ofLogVerbose("ofxSCServer") << "Null control bus at index " << firstIndex << " in /c_set";
-					continue;
-				}
-				
-				// Calculate array index BEFORE accessing anything
 				int arrayIndex = index - firstIndex;
 				
-				if(arrayIndex < 0) {
-					ofLogError("ofxSCServer") << "Negative array index in /c_set: " << arrayIndex
-											 << " (index=" << index << ", firstIndex=" << firstIndex << ")";
-					continue;
-				}
-				
-				// Get the bus pointer and do comprehensive validation
-				ofxSCBus* bus = controlBusses[firstIndex];
-				
-				try {
-					// Validate the bus object itself
-					if(bus->channels <= 0 || bus->channels > 1024) { // Reasonable channel limit
-						ofLogError("ofxSCServer") << "Invalid channel count in control bus: " << bus->channels;
-						continue;
+				if(firstIndex >= 0 && firstIndex < 4096 &&
+				   arrayIndex >= 0 &&
+				   controlBusses[firstIndex] != NULL) {
+					
+					try {
+						ofxSCBus* bus = controlBusses[firstIndex];
+						// Add corruption check
+						if(bus->channels > 0 && bus->channels <= 64 &&
+						   arrayIndex < bus->readValues.size()) {
+							bus->readValues[arrayIndex] = m.getArgAsFloat(i+1);
+						}
+					} catch(...) {
+						// Skip corrupted bus data
 					}
-					
-					// Check bounds against channels
-					if(arrayIndex >= bus->channels) {
-						ofLogError("ofxSCServer") << "Array index exceeds channels: "
-												 << arrayIndex << " >= " << bus->channels;
-						continue;
-					}
-					
-					// Check if readValues vector is properly sized
-					if(bus->readValues.size() != bus->channels) {
-						ofLogError("ofxSCServer") << "ReadValues size mismatch: "
-												 << bus->readValues.size() << " != " << bus->channels;
-						continue;
-					}
-					
-					// Final bounds check against actual vector size
-					if(arrayIndex >= static_cast<int>(bus->readValues.size())) {
-						ofLogError("ofxSCServer") << "Array index exceeds readValues size: "
-												 << arrayIndex << " >= " << bus->readValues.size();
-						continue;
-					}
-					
-					// Get the float value with error checking
-					float value;
-					if(i+1 < m.getNumArgs()) {
-						value = m.getArgAsFloat(i+1);
-					} else {
-						ofLogError("ofxSCServer") << "Missing float argument in /c_set at position " << (i+1);
-						continue;
-					}
-					
-					// Finally, the actual assignment with try-catch
-					bus->readValues[arrayIndex] = value;
-					
-				} catch(const std::out_of_range& e) {
-					ofLogError("ofxSCServer") << "Out of range exception in /c_set: " << e.what()
-											 << " (index=" << index << ", firstIndex=" << firstIndex
-											 << ", arrayIndex=" << arrayIndex << ")";
-				} catch(const std::exception& e) {
-					ofLogError("ofxSCServer") << "Exception in /c_set handler: " << e.what()
-											 << " (index=" << index << ", firstIndex=" << firstIndex
-											 << ", arrayIndex=" << arrayIndex << ")";
-				} catch(...) {
-					ofLogError("ofxSCServer") << "Unknown exception in /c_set handler"
-											 << " (index=" << index << ", firstIndex=" << firstIndex
-											 << ", arrayIndex=" << arrayIndex << ")";
 				}
 			}
 		}
