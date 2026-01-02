@@ -152,7 +152,7 @@ void ofxSCServer::process()
 					try {
 						ofxSCBus* bus = controlBusses[firstIndex];
 						// Add corruption check
-						if(bus->channels > 0 && bus->channels <= 64 &&
+						if(bus->channels > 0 &&
 						   arrayIndex < bus->readValues.size()) {
 							bus->readValues[arrayIndex] = m.getArgAsFloat(i+1);
 						}
