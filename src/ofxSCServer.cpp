@@ -162,6 +162,9 @@ void ofxSCServer::process()
 				}
 			}
 		}
+        else if (m.getAddress() == "/g_queryTree.reply"){
+            queryTreeReplyEvent.notify(m);
+        }
         
         //Node Notifications from server (n_go, n_end.., ugen notifications)
         //And Poll replies from synths

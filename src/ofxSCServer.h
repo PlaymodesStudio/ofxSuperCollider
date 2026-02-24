@@ -57,6 +57,7 @@ public:
     
     ofEvent<void> serverBootedEvent;
     ofEvent<void> serverInitializedEvent;
+    ofEvent<ofxOscMessage> queryTreeReplyEvent;
     
     void addNodeListener(ofxSCNode* node);
     void removeNodeListener(ofxSCNode* node);
