@@ -19,8 +19,6 @@
 #define MILISECONDS_FROM_1900_to_1970 2208988800000ULL
 #define TWO_TO_THE_32_OVER_ONE_MILLION 4295
 
-#define MAX_NOTIFIES_WITHOUT_REPLY 12
-
 ofxSCServer *ofxSCServer::plocal = NULL;
 
 ofxSCServer::ofxSCServer(std::string hostname, unsigned int port, unsigned int receivePort, unsigned int numInputs, unsigned int numOutputs, unsigned int numAudioBusses, unsigned int numControlBusses, unsigned int numBuffers)
@@ -49,9 +47,7 @@ ofxSCServer::ofxSCServer(std::string hostname, unsigned int port, unsigned int r
     latency = 0.2;
     b_latency = false;
     
-    booted = false;
-    initialized = false;
-    numNotifies = 0;
+    initializing = false;
 }
 
 ofxSCServer::~ofxSCServer()
@@ -79,8 +75,7 @@ void ofxSCServer::process()
     ofxOscMessage m;
     m.setAddress("/status");
     osc.sendMessage(m);
-    if(booted) numNotifies++;
-	
+    
 //#ifdef _ofxOscSENDERRECEIVER_H
 
 	while(osc.hasWaitingMessages())
@@ -91,17 +86,14 @@ void ofxSCServer::process()
 //        ofLog() << m;
         
         if (m.getAddress() == "/status.reply"){
-            if(!booted){
-                booted = true;
+            int numSynths   = m.getArgAsInt(2);
+            int numGroups   = m.getArgAsInt(3);
+            int numSynthDefs = m.getArgAsInt(4);
+            
+            if(!initializing && numGroups == 1 && numSynthDefs == 1 && numSynths == 0){ //Server rebooted
                 serverBootedEvent.notify(this);
-                numNotifies = 0;
-            }else{
-                if(numNotifies > MAX_NOTIFIES_WITHOUT_REPLY){
-                    booted = false;
-                    initialized = false;
-                    ofLog() << "Detected killed server";
-                }
-                numNotifies--;
+                initializing = true;
+//                ofLog() << "Server Booted";
             }
         }
 		
@@ -113,8 +105,9 @@ void ofxSCServer::process()
 		{
 			std::string cmd = m.getArgAsString(0);
             if(cmd == "/d_loadDir"){
-                initialized = true;
+                initializing = false;
                 serverInitializedEvent.notify(this);
+//                ofLog() << "Server Initialized";
             }
 //			int index = m.getArgAsInt32(1);
 //			printf("** buffer read completed, ID %d\n", index);

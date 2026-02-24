@@ -81,10 +81,7 @@ protected:
     float latency;
     bool b_latency;
     
-    bool booted;
-    bool initialized;
-    
-    int numNotifies;
+    bool initializing;
     
 private:
     uint64_t getNowTimetag(float latency = 0);
