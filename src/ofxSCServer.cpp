@@ -23,19 +23,23 @@
 
 ofxSCServer *ofxSCServer::plocal = NULL;
 
-ofxSCServer::ofxSCServer(std::string hostname, unsigned int port)
+ofxSCServer::ofxSCServer(std::string hostname, unsigned int port, unsigned int receivePort, unsigned int numInputs, unsigned int numOutputs, unsigned int numAudioBusses, unsigned int numControlBusses, unsigned int numBuffers)
 {
 	this->hostname = hostname;
 	this->port = port;
 
-    osc.setup(hostname, port, port+20);
+    osc.setup(hostname, port, receivePort);
     listener = ofEvents().update.newListener(this, &ofxSCServer::_process);
 	
-	allocatorBusAudio = new ofxSCResourceAllocator(65536);
-	allocatorBusAudio->pos = 64;
+	allocatorBusAudio = new ofxSCResourceAllocator(numAudioBusses);
+	allocatorBusAudio->pos = numInputs + numOutputs;
 	
-	allocatorBusControl = new ofxSCResourceAllocator(4096);
-	allocatorBuffer = new ofxSCResourceAllocator(4096);
+	allocatorBusControl = new ofxSCResourceAllocator(numControlBusses);
+	allocatorBuffer = new ofxSCResourceAllocator(numBuffers);
+    
+    audioBusses.resize(numAudioBusses);
+    controlBusses.resize(numControlBusses);
+    buffers.resize(numBuffers);
 	
 	if (plocal == 0)
 		plocal = this;

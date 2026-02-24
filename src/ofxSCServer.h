@@ -27,7 +27,7 @@ class ofxSCNode;
 class ofxSCServer
 {
 public:	
-	ofxSCServer(std::string hostname = "localhost", unsigned int port = 57110);
+	ofxSCServer(std::string hostname = "localhost", unsigned int port = 57110, unsigned int receivePort = 57130, unsigned int numInputs = 32, unsigned int numOutputs = 32, unsigned int numAudioBusses = 65536, unsigned int numControlBusses = 65536, unsigned int numBuffers = 65536);
 	~ofxSCServer();
 
 	static ofxSCServer     *local();
@@ -51,9 +51,9 @@ public:
 	ofxSCResourceAllocator *allocatorBuffer;
 	ofxSCResourceAllocator *allocatorSynth;
 
-	ofxSCBuffer *buffers[4096];
-    ofxSCBus *controlBusses[4096];
-    ofxSCBus *audioBusses[65536];
+	std::vector<ofxSCBuffer*> buffers;
+    std::vector<ofxSCBus*> controlBusses;
+    std::vector<ofxSCBus*> audioBusses;
     
     ofEvent<void> serverBootedEvent;
     ofEvent<void> serverInitializedEvent;
