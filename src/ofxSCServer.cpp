@@ -90,7 +90,7 @@ void ofxSCServer::process()
             int numGroups   = m.getArgAsInt(3);
             int numSynthDefs = m.getArgAsInt(4);
             
-            if(!initializing && numGroups == 1 && numSynthDefs == 1 && numSynths == 0){ //Server rebooted
+            if(!initializing && numGroups == 1 && numSynthDefs == 0 && numSynths == 0){ //Server rebooted
                 serverBootedEvent.notify(this);
                 initializing = true;
 //                ofLog() << "Server Booted";
