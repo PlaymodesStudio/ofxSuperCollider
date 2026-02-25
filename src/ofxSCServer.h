@@ -11,6 +11,10 @@
  *
  *---------------------------------------------------------------------------*/
 
+
+/// TODO: Poder afegir un missatge de /sync Que faci pausar els missatges osc fins que s'hagi rebut
+/// el /sync corresponent de supercollider, per a no enviar missatges de control abans que s'hagi executat tot el graph per exmeple
+
 #pragma once
 
 #include <vector>
@@ -45,6 +49,8 @@ public:
     
     void setLatency(float _latency){latency = _latency;};
     void setBLatency(bool b){b_latency = b;};
+    float getLatency(){return latency;};
+    bool getBLatency(){return b_latency;};
 	
 	ofxSCResourceAllocator *allocatorBusAudio;
 	ofxSCResourceAllocator *allocatorBusControl;

@@ -45,7 +45,7 @@ void ofxSCNode::run(bool b){
     m.addIntArg(nodeID);
     m.addIntArg(b ? 1 : 0);
     
-    if(created){
+    if(created || server->getBLatency()){
         server->sendMsg(m);
     }else{
         storedMessages.push_back(m);
@@ -75,7 +75,7 @@ void ofxSCNode::order(int position, int groupID)
     m.addIntArg(groupID);
     m.addIntArg(nodeID);
     
-    if(created){
+    if(created || server->getBLatency()){
         server->sendMsg(m);
     }else{
         storedMessages.push_back(m);
@@ -91,7 +91,7 @@ void ofxSCNode::order(int position, std::vector<int> groupIDs)
     for(int groupID : groupIDs) m.addIntArg(groupID);
     m.addIntArg(nodeID);
     
-    if(created){
+    if(created || server->getBLatency()){
         server->sendMsg(m);
     }else{
         storedMessages.push_back(m);
@@ -106,7 +106,7 @@ void ofxSCNode::moveBefore(int _nodeID){
     m.addIntArg(nodeID);
     m.addIntArg(_nodeID);
     
-    if(created){
+    if(created || server->getBLatency()){
         server->sendMsg(m);
     }else{
         storedMessages.push_back(m);
@@ -120,7 +120,7 @@ void ofxSCNode::moveAfter(int _nodeID){
     m.addIntArg(nodeID);
     m.addIntArg(_nodeID);
     
-    if(created){
+    if(created || server->getBLatency()){
         server->sendMsg(m);
     }else{
         storedMessages.push_back(m);
