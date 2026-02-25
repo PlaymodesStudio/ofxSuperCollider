@@ -41,6 +41,7 @@ public:
 	ofxSCSynth & copy(const ofxSCSynth & other);
 	
 	void create(int position = 0, int groupID = 1);
+    void createAndRun(int position = 0, int groupID = 1, bool run = true);
 	void grain(int position = 0, int groupID = 1);
 	
 	void set(std::string arg, double value);
