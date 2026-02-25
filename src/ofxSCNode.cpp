@@ -44,7 +44,12 @@ void ofxSCNode::run(bool b){
     m.setAddress("/n_run");
     m.addIntArg(nodeID);
     m.addIntArg(b ? 1 : 0);
-    server->sendMsg(m);
+    
+    if(created){
+        server->sendMsg(m);
+    }else{
+        storedMessages.push_back(m);
+    }
 }
 
 void ofxSCNode::free()
@@ -70,7 +75,11 @@ void ofxSCNode::order(int position, int groupID)
     m.addIntArg(groupID);
     m.addIntArg(nodeID);
     
-    server->sendMsg(m);
+    if(created){
+        server->sendMsg(m);
+    }else{
+        storedMessages.push_back(m);
+    }
 }
 
 void ofxSCNode::order(int position, std::vector<int> groupIDs)
@@ -82,17 +91,26 @@ void ofxSCNode::order(int position, std::vector<int> groupIDs)
     for(int groupID : groupIDs) m.addIntArg(groupID);
     m.addIntArg(nodeID);
     
-    server->sendMsg(m);
+    if(created){
+        server->sendMsg(m);
+    }else{
+        storedMessages.push_back(m);
+    }
 }
 
 void ofxSCNode::moveBefore(int _nodeID){
+    
     ofxOscMessage m;
     
     m.setAddress("/n_before");
     m.addIntArg(nodeID);
     m.addIntArg(_nodeID);
     
-    server->sendMsg(m);
+    if(created){
+        server->sendMsg(m);
+    }else{
+        storedMessages.push_back(m);
+    }
 }
 
 void ofxSCNode::moveAfter(int _nodeID){
@@ -102,12 +120,18 @@ void ofxSCNode::moveAfter(int _nodeID){
     m.addIntArg(nodeID);
     m.addIntArg(_nodeID);
     
-    server->sendMsg(m);
+    if(created){
+        server->sendMsg(m);
+    }else{
+        storedMessages.push_back(m);
+    }
 }
 
 void ofxSCNode::feedbackListener(ofxOscMessage &msg){
     if(msg.getAddress() == "/n_go"){
         created = true;
+        for(auto &m : storedMessages) server->sendMsg(m);
+        storedMessages.clear();
         resendStoredArgs();
     }else if(msg.getAddress() == "/n_end"){
         created = false;

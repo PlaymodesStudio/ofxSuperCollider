@@ -64,4 +64,5 @@ protected:
 private:
     
     ofxSCServer *server;
+    std::vector<ofxOscMessage> storedMessages;
 };
