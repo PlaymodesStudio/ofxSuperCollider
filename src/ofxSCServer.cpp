@@ -19,6 +19,8 @@
 #define MILISECONDS_FROM_1900_to_1970 2208988800000ULL
 #define TWO_TO_THE_32_OVER_ONE_MILLION 4295
 
+#define INTIALIZATION_ID 1917  //Init with numbers
+
 ofxSCServer *ofxSCServer::plocal = NULL;
 
 ofxSCServer::ofxSCServer(std::string hostname, unsigned int port, unsigned int receivePort, unsigned int numInputs, unsigned int numOutputs, unsigned int numAudioBusses, unsigned int numControlBusses, unsigned int numBuffers)
@@ -103,16 +105,20 @@ void ofxSCServer::process()
 		 /*---------------------------------------------------------------------------*/
 		else if (m.getAddress() == "/done")
 		{
-			std::string cmd = m.getArgAsString(0);
-            if(cmd == "/d_loadDir"){
-                initializing = false;
-                serverInitializedEvent.notify(this);
-//                ofLog() << "Server Initialized";
-            }
 //			int index = m.getArgAsInt32(1);
 //			printf("** buffer read completed, ID %d\n", index);
 //			buffers[index]->ready = true;
 		}
+        
+        else if (m.getAddress() == "/synced")
+        {
+            int id = m.getArgAsInt(0);
+            if(id == INTIALIZATION_ID && initializing){
+                initializing = false;
+                serverInitializedEvent.notify(this);
+//                ofLog() << "Server Initialized";
+            }
+        }
 
 		/*-----------------------------------------------------------------------------
 		 * /b_info
@@ -184,6 +190,13 @@ void ofxSCServer::notify()
 	m.setAddress("/notify");
 	m.addIntArg(1);
 	osc.sendMessage(m, true);
+}
+
+void ofxSCServer::sendInitializationSyncMessage(){
+    ofxOscMessage m3;
+    m3.setAddress("/sync");
+    m3.addIntArg(INTIALIZATION_ID);
+    sendMsg(m3);
 }
 
 void ofxSCServer::sendMsg(ofxOscMessage& m)
