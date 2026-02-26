@@ -39,6 +39,7 @@ public:
 	void process();
 	void _process(ofEventArgs &e);
 	void notify();
+    void sendInitializationSyncMessage();
 	
 	void sendMsg(ofxOscMessage& message);
     void sendBundle(ofxOscBundle& bundle);
