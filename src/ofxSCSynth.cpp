@@ -392,16 +392,17 @@ void ofxSCSynth::resendStoredArgs(){
     ofxOscMessage m;
     ofxOscMessage m_mapa;
     ofxOscMessage m_mapan;
-    
+
     m.setAddress("/n_set");
     m.addIntArg(nodeID);
-    
+
     m_mapa.setAddress("/n_mapa");
     m_mapa.addIntArg(nodeID);
-    
+
     m_mapan.setAddress("/n_mapan");
     m_mapan.addIntArg(nodeID);
-    
+
+    // Scalar float/int args → /n_set  key value pairs
     for (dictionary::const_iterator it = args.begin();
         it != args.end(); ++it)
     {
@@ -412,50 +413,60 @@ void ofxSCSynth::resendStoredArgs(){
         m.addFloatArg(value);
     }
     args.clear();
-    
+
+    // Vector float args → individual /n_setn messages.
+    // addCharArg('['/']') produces OSC type tag 'c' (a single char value),
+    // which SuperCollider's /n_set parser does NOT recognise as an array
+    // delimiter — it expects literal '[' ']' type tags in the type-tag string.
+    // /n_setn (nodeID, controlName, count, v0, v1, ...) is the correct,
+    // unambiguous SC command for setting a run of consecutive controls.
+    std::vector<ofxOscMessage> setnMessages;
     for (vecDictionary::const_iterator it = vecArgs.begin();
          it != vecArgs.end(); ++it)
     {
         std::string key = it->first;
         std::vector<float> value = it->second;
-        
-        m.addStringArg(key.c_str());
-        m.addCharArg('[');
-        for(auto &v : value) m.addFloatArg(v);
-        m.addCharArg(']');
+
+        ofxOscMessage mSetn;
+        mSetn.setAddress("/n_setn");
+        mSetn.addIntArg(nodeID);
+        mSetn.addStringArg(key.c_str());
+        mSetn.addIntArg((int)value.size());
+        for(auto &v : value) mSetn.addFloatArg(v);
+        setnMessages.push_back(std::move(mSetn));
     }
     vecArgs.clear();
-    
+
     for (strDictionary::const_iterator it = strArgs.begin();
          it != strArgs.end(); ++it)
     {
         std::string key = it->first;
         std::string value = it->second;
-        
+
         m.addStringArg(key.c_str());
         m.addStringArg(value.c_str());
     }
     strArgs.clear();
-    
+
     for (vecStrDictionary::const_iterator it = vecStrArgs.begin();
          it != vecStrArgs.end(); ++it)
     {
         std::string key = it->first;
         std::vector<std::string> value = it->second;
-        
+
         m.addStringArg(key.c_str());
         m.addCharArg('[');
         for(auto &v : value) m.addStringArg(v);
         m.addCharArg(']');
     }
     vecStrArgs.clear();
-    
+
     for (mapaDictionary::const_iterator it = mapaArgs.begin();
          it != mapaArgs.end(); it++)
     {
         std::string key = it->first;
         std::pair<int, int> value = it->second;
-        
+
         if(value.second == 1){
             m_mapa.addStringArg(key.c_str());
             m_mapa.addIntArg(value.second);
@@ -466,9 +477,10 @@ void ofxSCSynth::resendStoredArgs(){
         }
     }
     mapaArgs.clear();
-    
+
     ofxOscBundle b;
     if(m.getNumArgs() > 1) b.addMessage(m);
+    for(auto& sm : setnMessages) b.addMessage(sm);
     if(m_mapa.getNumArgs() > 1) b.addMessage(m_mapa);
     if(m_mapan.getNumArgs() > 1) b.addMessage(m_mapan);
 
