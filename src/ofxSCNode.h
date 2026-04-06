@@ -52,6 +52,8 @@ public:
     
     void feedbackListener(ofxOscMessage &msg);
     virtual void resendStoredArgs(){};
+
+    bool isCreated() const { return created; }
 		
     ofEvent<ofxOscMessage> newFeedbackMessage;
 protected:
