@@ -40,6 +40,7 @@ public:
 	void _process(ofEventArgs &e);
 	void notify();
     void sendInitializationSyncMessage();
+	void resetAllocators();
 	
 	void sendMsg(ofxOscMessage& message);
     void sendBundle(ofxOscBundle& bundle);
@@ -84,6 +85,11 @@ protected:
 	static ofxSCServer *plocal;
 	std::string hostname;
 	unsigned int port;
+	unsigned int numInputs;
+	unsigned int numOutputs;
+	unsigned int numAudioBusses;
+	unsigned int numControlBusses;
+	unsigned int numBuffers;
     
     float latency;
     bool b_latency;
@@ -93,4 +99,3 @@ protected:
 private:
     uint64_t getNowTimetag(float latency = 0);
 };
-

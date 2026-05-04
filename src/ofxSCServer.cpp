@@ -15,6 +15,7 @@
 #include "ofxSCBuffer.h"
 #include "ofxOsc.h"
 #include "ofxSCNode.h"
+#include <algorithm>
 
 #define MILISECONDS_FROM_1900_to_1970 2208988800000ULL
 #define TWO_TO_THE_32_OVER_ONE_MILLION 4295
@@ -27,6 +28,11 @@ ofxSCServer::ofxSCServer(std::string hostname, unsigned int port, unsigned int r
 {
 	this->hostname = hostname;
 	this->port = port;
+	this->numInputs = numInputs;
+	this->numOutputs = numOutputs;
+	this->numAudioBusses = numAudioBusses;
+	this->numControlBusses = numControlBusses;
+	this->numBuffers = numBuffers;
 
     osc.setup(hostname, port, receivePort);
     listener = ofEvents().update.newListener(this, &ofxSCServer::_process);
@@ -36,6 +42,7 @@ ofxSCServer::ofxSCServer(std::string hostname, unsigned int port, unsigned int r
 	
 	allocatorBusControl = new ofxSCResourceAllocator(numControlBusses);
 	allocatorBuffer = new ofxSCResourceAllocator(numBuffers);
+	allocatorSynth = nullptr;
     
     audioBusses.resize(numAudioBusses);
     controlBusses.resize(numControlBusses);
@@ -93,6 +100,7 @@ void ofxSCServer::process()
             int numSynthDefs = m.getArgAsInt(4);
             
             if(!initializing && numGroups == 1 && numSynthDefs == 0 && numSynths == 0){ //Server rebooted
+                resetAllocators();
                 serverBootedEvent.notify(this);
                 initializing = true;
 //                ofLog() << "Server Booted";
@@ -148,7 +156,7 @@ void ofxSCServer::process()
 				int index = m.getArgAsInt32(i);
 				int arrayIndex = index - firstIndex;
 				
-				if(firstIndex >= 0 && firstIndex < 4096 &&
+				if(firstIndex >= 0 && firstIndex < (int)controlBusses.size() &&
 				   arrayIndex >= 0 &&
 				   controlBusses[firstIndex] != NULL) {
 					
@@ -190,6 +198,26 @@ void ofxSCServer::notify()
 	m.setAddress("/notify");
 	m.addIntArg(1);
 	osc.sendMessage(m, true);
+}
+
+void ofxSCServer::resetAllocators()
+{
+	if(allocatorBusAudio != nullptr){
+		allocatorBusAudio->reset(numInputs + numOutputs);
+	}
+	if(allocatorBusControl != nullptr){
+		allocatorBusControl->reset(0);
+	}
+	if(allocatorBuffer != nullptr){
+		allocatorBuffer->reset(0);
+	}
+	if(allocatorSynth != nullptr){
+		allocatorSynth->reset(0);
+	}
+
+	std::fill(audioBusses.begin(), audioBusses.end(), nullptr);
+	std::fill(controlBusses.begin(), controlBusses.end(), nullptr);
+	std::fill(buffers.begin(), buffers.end(), nullptr);
 }
 
 void ofxSCServer::sendInitializationSyncMessage(){

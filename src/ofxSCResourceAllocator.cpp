@@ -27,6 +27,11 @@ ofxSCResourceAllocator::ofxSCResourceAllocator(int capacity)
 		this->free_lists[i] = NULL;
 }
 
+ofxSCResourceAllocator::~ofxSCResourceAllocator()
+{
+	reset();
+}
+
 
 int ofxSCResourceAllocator::alloc (int resource_size)
 {
@@ -62,4 +67,20 @@ void ofxSCResourceAllocator::free (int address)
 		free_lists[res->size] = res;
 		// should we set resources[address] = null?
 	}
+}
+
+void ofxSCResourceAllocator::reset(int startPos)
+{
+	for (auto &res : resources)
+	{
+		delete res;
+		res = NULL;
+	}
+
+	for (auto &freeList : free_lists)
+	{
+		freeList = NULL;
+	}
+
+	pos = startPos;
 }

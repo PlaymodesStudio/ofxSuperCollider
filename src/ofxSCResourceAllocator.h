@@ -38,9 +38,11 @@ class ofxSCResourceAllocator
 {
 public:
 	ofxSCResourceAllocator(int capacity);
+	~ofxSCResourceAllocator();
 	
 	int alloc (int resource_size);
 	void free (int address);
+	void reset(int startPos = 0);
 	
 	int capacity;
 	int pos;
