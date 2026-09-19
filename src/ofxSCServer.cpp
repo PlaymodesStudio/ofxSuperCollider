@@ -16,11 +16,31 @@
 #include "ofxOsc.h"
 #include "ofxSCNode.h"
 #include <algorithm>
+#include <chrono>
+#include <cstdint>
 
 #define MILISECONDS_FROM_1900_to_1970 2208988800000ULL
+#define SECONDS_FROM_1900_TO_1970 2208988800ULL
 #define TWO_TO_THE_32_OVER_ONE_MILLION 4295
 
 #define INTIALIZATION_ID 1917  //Init with numbers
+
+namespace {
+// One per thread: several servers may be driven from the same scheduling
+// scope, and a scope must not leak into another thread's sends.
+thread_local uint64_t scopedTimetagValue = 0;
+
+// NTP timetag from a Unix epoch time in microseconds. Microsecond resolution
+// matters: the previous millisecond rounding was already a third of an audio
+// control block, which is most of what timestamping is meant to remove.
+uint64_t timetagFromUnixMicroseconds(int64_t unixMicroseconds){
+    if(unixMicroseconds < 0) return 1;
+    const uint64_t seconds = (uint64_t)(unixMicroseconds / 1000000) + SECONDS_FROM_1900_TO_1970;
+    const uint64_t microseconds = (uint64_t)(unixMicroseconds % 1000000);
+    const uint32_t fractionalPart = (uint32_t)((microseconds * 4294967296ULL) / 1000000ULL);
+    return (seconds << 32) + fractionalPart;
+}
+}
 
 ofxSCServer *ofxSCServer::plocal = NULL;
 
@@ -230,6 +250,12 @@ void ofxSCServer::sendInitializationSyncMessage(){
 void ofxSCServer::sendMsg(ofxOscMessage& m)
 {
     if(toSendBundle.getMessageCount() > 1000) sendStoredBundle();
+    const uint64_t scoped = getScopedTimetag();
+    if(scoped != 0 && !waitToSend){
+        // Inside a ScopedTimetag: this message belongs to a precise instant.
+        osc.sendMessage(m, true, applyLatencyToTimetag(scoped));
+        return;
+    }
     if(waitToSend){
         toSendBundle.addMessage(m);
     }else{
@@ -240,6 +266,11 @@ void ofxSCServer::sendMsg(ofxOscMessage& m)
 void ofxSCServer::sendBundle(ofxOscBundle& b)
 {
     if(toSendBundle.getMessageCount() > (1000-b.getMessageCount())) sendStoredBundle();
+    const uint64_t scoped = getScopedTimetag();
+    if(scoped != 0 && !waitToSend){
+        osc.sendBundle(b, applyLatencyToTimetag(scoped));
+        return;
+    }
     if(waitToSend){
         for(int i = 0; i < b.getMessageCount(); i++){
             toSendBundle.addMessage(b.getMessageAt(i));
@@ -274,17 +305,71 @@ void ofxSCServer::removeNodeListener(ofxSCNode *node){
     nodeFeedbackFunctions.erase(node);
 }
 
+ofxSCServer::ScopedTimetag::ScopedTimetag(uint64_t timetag) : previous(scopedTimetagValue){
+    scopedTimetagValue = timetag;
+}
+
+ofxSCServer::ScopedTimetag::~ScopedTimetag(){
+    scopedTimetagValue = previous;
+}
+
+uint64_t ofxSCServer::getScopedTimetag(){
+    return scopedTimetagValue;
+}
+
+uint64_t ofxSCServer::timetagNow(double offsetSeconds){
+    const auto unixTime = std::chrono::system_clock::now().time_since_epoch();
+    const int64_t nowUs = std::chrono::duration_cast<std::chrono::microseconds>(unixTime).count();
+    return timetagFromUnixMicroseconds(nowUs + (int64_t)(offsetSeconds * 1000000.0));
+}
+
+uint64_t ofxSCServer::timetagForSteadyTimeUs(uint64_t steadyTimeUs){
+    // steady_clock is monotonic but has an arbitrary epoch, so it is converted
+    // through the offset between the two clocks, sampled now. Both clocks are
+    // read back to back, which keeps the conversion error far below the
+    // resolution that matters here.
+    const int64_t steadyNowUs = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+    const int64_t systemNowUs = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    return timetagFromUnixMicroseconds(systemNowUs + ((int64_t)steadyTimeUs - steadyNowUs));
+}
+
+uint64_t ofxSCServer::applyLatencyToTimetag(uint64_t timetag) const {
+    if(!b_latency || timetag <= 1) return timetag;
+    // Fixed-point seconds: the whole part is seconds, the fraction 2^-32 s.
+    const double offset = (double)latency;
+    const uint64_t offsetFixed = (uint64_t)(offset * 4294967296.0);
+    return timetag + offsetFixed;
+}
+
+void ofxSCServer::sendMsgAt(ofxOscMessage& m, uint64_t timetag){
+    if(timetag <= 1){
+        sendMsg(m);
+        return;
+    }
+    if(waitToSend){
+        // The graph is still being built; ordering matters more than timing.
+        toSendBundle.addMessage(m);
+        return;
+    }
+    osc.sendMessage(m, true, applyLatencyToTimetag(timetag));
+}
+
+void ofxSCServer::sendBundleAt(ofxOscBundle& b, uint64_t timetag){
+    if(timetag <= 1){
+        sendBundle(b);
+        return;
+    }
+    if(waitToSend){
+        for(int i = 0; i < b.getMessageCount(); i++) toSendBundle.addMessage(b.getMessageAt(i));
+        return;
+    }
+    osc.sendBundle(b, applyLatencyToTimetag(timetag));
+}
+
 uint64_t ofxSCServer::getNowTimetag(float latency){
-    auto now = std::chrono::system_clock::now();
-    auto unix_time = now.time_since_epoch();
-    // Add latency (convert seconds to nanoseconds and add)
-    auto latency_duration = std::chrono::duration<double>(latency);
-    std::chrono::duration unix_time_mod = unix_time + std::chrono::duration_cast<std::chrono::nanoseconds>(latency_duration);
-    
-    //https://github.com/juce-framework/JUCE/blob/master/modules/juce_osc/osc/juce_OSCTimeTag.cpp
-    const uint64_t milliseconds = (uint64_t) std::chrono::duration_cast<std::chrono::milliseconds>(unix_time_mod).count() + MILISECONDS_FROM_1900_to_1970;
-    uint64_t seconds = milliseconds / 1000;
-    uint32_t fractionalPart = uint32_t (4294967.296 * (milliseconds % 1000));
-    
-    return (seconds << 32) + fractionalPart;
+    const auto unixTime = std::chrono::system_clock::now().time_since_epoch();
+    const int64_t nowUs = std::chrono::duration_cast<std::chrono::microseconds>(unixTime).count();
+    return timetagFromUnixMicroseconds(nowUs + (int64_t)((double)latency * 1000000.0));
 }

@@ -18,6 +18,7 @@
 #pragma once
 
 #include <vector>
+#include <cstdint>
 
 #include "ofxOsc.h"
 #include "ofxOscSenderReceiver.h"
@@ -44,6 +45,36 @@ public:
 	
 	void sendMsg(ofxOscMessage& message);
     void sendBundle(ofxOscBundle& bundle);
+
+    // --- Timestamped sending ------------------------------------------------
+    // scsynth executes an OSC bundle at the instant carried by its NTP
+    // timetag, sample-accurately, instead of at the top of the control block
+    // in which it happens to arrive. That is the only way a musical event can
+    // be precise while the sender runs at frame rate.
+    void sendMsgAt(ofxOscMessage& message, uint64_t timetag);
+    void sendBundleAt(ofxOscBundle& bundle, uint64_t timetag);
+    // Builds a timetag from a std::chrono::steady_clock instant in
+    // microseconds (the domain ofxOceanodeTransportState::steadyTimeUs uses).
+    static uint64_t timetagForSteadyTimeUs(uint64_t steadyTimeUs);
+    // Now, optionally offset by a number of seconds. Microsecond resolution.
+    static uint64_t timetagNow(double offsetSeconds = 0.0);
+
+    // Every sendMsg()/sendBundle() made on this thread while a scope is alive
+    // carries this timetag. It lets existing "set this parameter on the
+    // synths" code be reused verbatim for a value that must land at a precise
+    // instant, instead of duplicating it into a scheduling-specific path.
+    class ScopedTimetag {
+    public:
+        explicit ScopedTimetag(uint64_t timetag);
+        ~ScopedTimetag();
+        ScopedTimetag(const ScopedTimetag&) = delete;
+        ScopedTimetag& operator=(const ScopedTimetag&) = delete;
+    private:
+        uint64_t previous;
+    };
+    // 0 when no scope is active.
+    static uint64_t getScopedTimetag();
+
     
     void setWaitToSend(bool b);
     bool getWaitToSend();
@@ -95,7 +126,11 @@ protected:
     bool b_latency;
     
     bool initializing;
-    
+
 private:
     uint64_t getNowTimetag(float latency = 0);
+    // Adds the server's own latency offset to an absolute timetag when
+    // latency compensation is on, so scheduled and immediate messages keep
+    // the same relative timing.
+    uint64_t applyLatencyToTimetag(uint64_t timetag) const;
 };
