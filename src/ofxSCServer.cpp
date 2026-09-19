@@ -18,6 +18,9 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <fstream>
+#include <cmath>
+#include <utility>
 
 #define MILISECONDS_FROM_1900_to_1970 2208988800000ULL
 #define SECONDS_FROM_1900_TO_1970 2208988800ULL
@@ -250,6 +253,8 @@ void ofxSCServer::sendInitializationSyncMessage(){
 void ofxSCServer::sendMsg(ofxOscMessage& m)
 {
     if(toSendBundle.getMessageCount() > 1000) sendStoredBundle();
+    if(nrtCapturing && !waitToSend) captureNRTMessage(m);
+    if(nrtCapturing && nrtCaptureOnly) return;
     const uint64_t scoped = getScopedTimetag();
     if(scoped != 0 && !waitToSend){
         // Inside a ScopedTimetag: this message belongs to a precise instant.
@@ -266,6 +271,8 @@ void ofxSCServer::sendMsg(ofxOscMessage& m)
 void ofxSCServer::sendBundle(ofxOscBundle& b)
 {
     if(toSendBundle.getMessageCount() > (1000-b.getMessageCount())) sendStoredBundle();
+    if(nrtCapturing && !waitToSend) captureNRTBundle(b);
+    if(nrtCapturing && nrtCaptureOnly) return;
     const uint64_t scoped = getScopedTimetag();
     if(scoped != 0 && !waitToSend){
         osc.sendBundle(b, applyLatencyToTimetag(scoped));
@@ -290,8 +297,184 @@ bool ofxSCServer::getWaitToSend(){
 }
 
 void ofxSCServer::sendStoredBundle(){
+    if(nrtCapturing){
+        if(toSendBundle.getMessageCount() > 0) captureNRTBundle(toSendBundle);
+        toSendBundle.clear();
+        return;
+    }
     osc.sendBundle(toSendBundle);
     toSendBundle.clear();
+}
+
+void ofxSCServer::beginNRTCapture(bool captureOnly){
+    nrtCapturing = true;
+    nrtCaptureOnly = captureOnly;
+    nrtTimeProviderEnabled = false;
+    nrtTime = 0.0;
+    nrtEndTime = -1.0;
+    nrtEvents.clear();
+    nrtCreatedNodeIDs.clear();
+    toSendBundle.clear();
+}
+
+void ofxSCServer::endNRTCapture(double endTime){
+    if(toSendBundle.getMessageCount() > 0) sendStoredBundle();
+    nrtEndTime = endTime;
+    nrtCapturing = false;
+    nrtTimeProviderEnabled = false;
+    nrtCaptureOnly = true;
+    nrtCreatedNodeIDs.clear();
+}
+
+void ofxSCServer::clearNRTScore(){
+    nrtEvents.clear();
+    nrtEndTime = -1.0;
+    nrtCreatedNodeIDs.clear();
+}
+
+void ofxSCServer::setNRTTime(double seconds){
+    nrtTime = std::max(0.0, seconds);
+}
+
+void ofxSCServer::setNRTTimeProvider(std::function<double()> provider){
+    nrtTimeProvider = std::move(provider);
+}
+
+void ofxSCServer::setNRTTimeProviderEnabled(bool enabled){
+    nrtTimeProviderEnabled = enabled;
+}
+
+double ofxSCServer::getNRTEventTime() const{
+    if(nrtTimeProviderEnabled && nrtTimeProvider){
+        return std::max(0.0, nrtTimeProvider());
+    }
+    return std::max(0.0, nrtTime);
+}
+
+bool ofxSCServer::shouldCaptureNRTAddress(const std::string& address) const{
+    // Transport queries have no useful role in an offline score.
+    return address != "/status" && address != "/notify" && address != "/sync"
+        && address != "/dumpOSC" && address != "/quit" && address != "/g_queryTree";
+}
+
+bool ofxSCServer::shouldCaptureNRTMessage(const ofxOscMessage& message){
+    const std::string address = message.getAddress();
+
+    // Rebuilding the live graph can resend the same creation command several
+    // times while NRT capture is active. scsynth rejects a second /s_new or
+    // /g_new with an existing node ID, so keep only the first creation until
+    // the score explicitly frees that node.
+    if(address == "/s_new" && message.getNumArgs() > 1){
+        const int nodeID = message.getArgAsInt(1);
+        return nrtCreatedNodeIDs.insert(nodeID).second;
+    }
+    if(address == "/g_new" && message.getNumArgs() > 0){
+        const int nodeID = message.getArgAsInt(0);
+        return nrtCreatedNodeIDs.insert(nodeID).second;
+    }
+    if(address == "/n_free" && message.getNumArgs() > 0){
+        nrtCreatedNodeIDs.erase(message.getArgAsInt(0));
+    }else if(address == "/g_free" && message.getNumArgs() > 0){
+        nrtCreatedNodeIDs.erase(message.getArgAsInt(0));
+    }else if(address == "/g_freeAll"){
+        nrtCreatedNodeIDs.clear();
+    }
+    return true;
+}
+
+void ofxSCServer::captureNRTMessage(const ofxOscMessage& message){
+    NRTEvent event;
+    event.time = getNRTEventTime();
+    if(!appendNRTMessage(event.bundle, message)) return;
+    nrtEvents.push_back(std::move(event));
+}
+
+void ofxSCServer::captureNRTBundle(const ofxOscBundle& bundle){
+    if(bundle.getMessageCount() == 0 && bundle.getBundleCount() == 0) return;
+    NRTEvent event;
+    event.time = getNRTEventTime();
+    appendNRTBundleContents(event.bundle, bundle);
+    if(event.bundle.getMessageCount() > 0 || event.bundle.getBundleCount() > 0){
+        nrtEvents.push_back(std::move(event));
+    }
+}
+
+bool ofxSCServer::appendNRTMessage(ofxOscBundle& destination, const ofxOscMessage& message){
+    if(!shouldCaptureNRTAddress(message.getAddress()) || !shouldCaptureNRTMessage(message)) return false;
+    destination.addMessage(message);
+    return true;
+}
+
+void ofxSCServer::appendNRTBundleContents(ofxOscBundle& destination, const ofxOscBundle& source){
+    for(std::size_t i = 0; i < source.getMessageCount(); i++){
+        appendNRTMessage(destination, source.getMessageAt(i));
+    }
+    for(std::size_t i = 0; i < source.getBundleCount(); i++){
+        ofxOscBundle nested;
+        appendNRTBundleContents(nested, source.getBundleAt(i));
+        if(nested.getMessageCount() > 0 || nested.getBundleCount() > 0){
+            destination.addBundle(nested);
+        }
+    }
+}
+
+bool ofxSCServer::writeNRTScore(const std::string& path, double endTime) const{
+    std::vector<NRTEvent> events = nrtEvents;
+    std::stable_sort(events.begin(), events.end(), [](const NRTEvent& a, const NRTEvent& b){
+        return a.time < b.time;
+    });
+
+    double finish = endTime >= 0.0 ? endTime : nrtEndTime;
+    if(finish < 0.0){
+        finish = 0.0;
+        for(const auto& event : events) finish = std::max(finish, event.time);
+        finish += 0.1;
+    }
+    finish = std::max(0.0, finish);
+
+    std::ofstream file(path, std::ios::binary | std::ios::trunc);
+    if(!file.is_open()) return false;
+
+    auto writePacket = [&file](const std::vector<char>& packet){
+        const uint32_t size = static_cast<uint32_t>(packet.size());
+        const char prefix[4] = {
+            static_cast<char>((size >> 24) & 0xff),
+            static_cast<char>((size >> 16) & 0xff),
+            static_cast<char>((size >> 8) & 0xff),
+            static_cast<char>(size & 0xff)
+        };
+        file.write(prefix, sizeof(prefix));
+        file.write(packet.data(), static_cast<std::streamsize>(packet.size()));
+    };
+
+    // NRT score timetags are seconds from zero, encoded as the fractional
+    // 32.32 OSC timetag representation (unlike realtime NTP wall-clock tags).
+    auto scoreTimeTag = [](double seconds){
+        if(seconds <= 0.0) return static_cast<uint64_t>(0);
+        const uint64_t whole = static_cast<uint64_t>(std::floor(seconds));
+        const double fractional = seconds - std::floor(seconds);
+        const uint64_t fraction = static_cast<uint64_t>(fractional * 4294967296.0);
+        return (whole << 32) | std::min<uint64_t>(fraction, 0xffffffffULL);
+    };
+
+    for(const auto& event : events){
+        writePacket(osc.serializeScoreBundle(event.bundle, scoreTimeTag(event.time)));
+    }
+
+    // Keep the final audio block at the requested duration. scsynth does not
+    // reliably terminate an NRT process just because the score file reached
+    // EOF, so the score must explicitly quit after that block has rendered.
+    ofxOscBundle endBundle;
+    ofxOscMessage endMessage;
+    endMessage.setAddress("/c_set");
+    endMessage.addIntArg(0);
+    endMessage.addFloatArg(0.0f);
+    endBundle.addMessage(endMessage);
+    ofxOscMessage quitMessage;
+    quitMessage.setAddress("/quit");
+    endBundle.addMessage(quitMessage);
+    writePacket(osc.serializeScoreBundle(endBundle, scoreTimeTag(finish)));
+    return file.good();
 }
 
 void ofxSCServer::addNodeListener(ofxSCNode* node){
@@ -344,6 +527,10 @@ uint64_t ofxSCServer::applyLatencyToTimetag(uint64_t timetag) const {
 }
 
 void ofxSCServer::sendMsgAt(ofxOscMessage& m, uint64_t timetag){
+    if(nrtCapturing && timetag > 1){
+        captureNRTMessage(m);
+        if(nrtCaptureOnly) return;
+    }
     if(timetag <= 1){
         sendMsg(m);
         return;
@@ -357,6 +544,10 @@ void ofxSCServer::sendMsgAt(ofxOscMessage& m, uint64_t timetag){
 }
 
 void ofxSCServer::sendBundleAt(ofxOscBundle& b, uint64_t timetag){
+    if(nrtCapturing && timetag > 1){
+        captureNRTBundle(b);
+        if(nrtCaptureOnly) return;
+    }
     if(timetag <= 1){
         sendBundle(b);
         return;

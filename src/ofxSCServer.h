@@ -19,6 +19,9 @@
 
 #include <vector>
 #include <cstdint>
+#include <functional>
+#include <string>
+#include <unordered_set>
 
 #include "ofxOsc.h"
 #include "ofxOscSenderReceiver.h"
@@ -58,6 +61,19 @@ public:
     static uint64_t timetagForSteadyTimeUs(uint64_t steadyTimeUs);
     // Now, optionally offset by a number of seconds. Microsecond resolution.
     static uint64_t timetagNow(double offsetSeconds = 0.0);
+
+    // SuperCollider non-realtime score capture. Existing nodes continue to
+    // use sendMsg()/sendBundle(); the server records those OSC commands.
+    void beginNRTCapture(bool captureOnly = true);
+    void endNRTCapture(double endTime = -1.0);
+    void clearNRTScore();
+    void setNRTTime(double seconds);
+    void setNRTTimeProvider(std::function<double()> provider);
+    void setNRTTimeProviderEnabled(bool enabled);
+    bool isNRTCapturing() const { return nrtCapturing; }
+    std::size_t getNRTEventCount() const { return nrtEvents.size(); }
+    double getNRTTime() const { return nrtTime; }
+    bool writeNRTScore(const std::string& path, double endTime = -1.0) const;
 
     // Every sendMsg()/sendBundle() made on this thread while a scope is alive
     // carries this timetag. It lets existing "set this parameter on the
@@ -127,7 +143,28 @@ protected:
     
     bool initializing;
 
+    struct NRTEvent {
+        double time = 0.0;
+        ofxOscBundle bundle;
+    };
+
+    bool nrtCapturing = false;
+    bool nrtCaptureOnly = true;
+    bool nrtTimeProviderEnabled = false;
+    double nrtTime = 0.0;
+    double nrtEndTime = -1.0;
+    std::function<double()> nrtTimeProvider;
+    std::vector<NRTEvent> nrtEvents;
+    std::unordered_set<int> nrtCreatedNodeIDs;
+    
 private:
+    double getNRTEventTime() const;
+    void captureNRTMessage(const ofxOscMessage& message);
+    void captureNRTBundle(const ofxOscBundle& bundle);
+    bool appendNRTMessage(ofxOscBundle& destination, const ofxOscMessage& message);
+    void appendNRTBundleContents(ofxOscBundle& destination, const ofxOscBundle& source);
+    bool shouldCaptureNRTAddress(const std::string& address) const;
+    bool shouldCaptureNRTMessage(const ofxOscMessage& message);
     uint64_t getNowTimetag(float latency = 0);
     // Adds the server's own latency offset to an absolute timetag when
     // latency compensation is on, so scheduled and immediate messages keep
