@@ -21,6 +21,7 @@
 #include "ofParameter.h"
 
 #include "ofThreadChannel.h"
+#include <vector>
 
 /// \struct ofxOscSenderSettings
 /// \brief OSC message sender settings
@@ -62,6 +63,15 @@ public:
 
     /// send the given bundle
     void sendBundle(const ofxOscBundle &bundle, uint64_t timetag = 1);
+
+    // Serialize an OSC packet using the same encoder as the network sender.
+    // NRT score files use these packets instead of sending them over UDP.
+    std::vector<char> serializeBundle(const ofxOscBundle &bundle, uint64_t timetag = 1) const;
+    // Serialize a native SuperCollider NRT score packet. Unlike a realtime
+    // sendBundle packet, the bundle contents must be written directly inside
+    // the timed outer bundle, without an extra immediate nested bundle.
+    std::vector<char> serializeScoreBundle(const ofxOscBundle &bundle, uint64_t timetag = 0) const;
+    std::vector<char> serializeMessage(const ofxOscMessage &message, bool wrapInBundle = false, uint64_t timetag = 1) const;
 
     /// create & send a message with data from an ofParameter
     void sendParameter(const ofAbstractParameter &parameter);
@@ -116,8 +126,9 @@ protected:
 private:
 
     // helper methods for constructing messages
-    void appendBundle(const ofxOscBundle &bundle, osc::OutboundPacketStream &p);
-    void appendMessage(const ofxOscMessage &message, osc::OutboundPacketStream &p);
+    void appendBundle(const ofxOscBundle &bundle, osc::OutboundPacketStream &p) const;
+    void appendBundleContents(const ofxOscBundle &bundle, osc::OutboundPacketStream &p) const;
+    void appendMessage(const ofxOscMessage &message, osc::OutboundPacketStream &p) const;
     void appendParameter(ofxOscBundle &bundle, const ofAbstractParameter &parameter, const std::string &address);
     void appendParameter(ofxOscMessage &msg, const ofAbstractParameter &parameter, const std::string &address);
 
