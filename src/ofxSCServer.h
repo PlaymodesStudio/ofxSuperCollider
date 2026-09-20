@@ -71,6 +71,27 @@ public:
     void setNRTTimeProvider(std::function<double()> provider);
     void setNRTTimeProviderEnabled(bool enabled);
     bool isNRTCapturing() const { return nrtCapturing; }
+    // A /sync round trip: the server answers only once every asynchronous
+    // command issued before it has finished. Loading the SynthDef tree is the
+    // slow one -- seconds, not milliseconds -- and anything that waits for it
+    // has to wait for this, not for a guess.
+    void requestNRTSync();
+    bool isNRTSyncPending() const { return nrtSyncPending; }
+
+    // Pauses recording into the score without ending the capture or stopping
+    // anything being sent. Used while a capture is armed but not yet rolling:
+    // the graph's state is already in the score at time zero, and every frame
+    // that passes before the transport starts would otherwise pile more
+    // messages onto that same timestamp.
+    void setNRTCaptureSuspended(bool suspended){ nrtCaptureSuspended = suspended; }
+    bool isNRTCaptureSuspended() const { return nrtCaptureSuspended; }
+
+    // While a capture is armed but not yet rolling, only state belongs in the
+    // score. Anything that happens during that window happened *before* the
+    // recording started -- a note played while waiting would otherwise be
+    // frozen at score time zero and sound again at the top of the render.
+    void setNRTEventsSuppressed(bool suppressed){ nrtEventsSuppressed = suppressed; }
+    bool areNRTEventsSuppressed() const { return nrtEventsSuppressed; }
     std::size_t getNRTEventCount() const { return nrtEvents.size(); }
     double getNRTTime() const { return nrtTime; }
     bool writeNRTScore(const std::string& path, double endTime = -1.0) const;
@@ -150,6 +171,9 @@ protected:
 
     bool nrtCapturing = false;
     bool nrtCaptureOnly = true;
+    bool nrtCaptureSuspended = false;
+    bool nrtSyncPending = false;
+    bool nrtEventsSuppressed = false;
     bool nrtTimeProviderEnabled = false;
     double nrtTime = 0.0;
     double nrtEndTime = -1.0;
@@ -165,6 +189,7 @@ private:
     void appendNRTBundleContents(ofxOscBundle& destination, const ofxOscBundle& source);
     bool shouldCaptureNRTAddress(const std::string& address) const;
     bool shouldCaptureNRTMessage(const ofxOscMessage& message);
+    bool isTransientNRTMessage(const ofxOscMessage& message) const;
     uint64_t getNowTimetag(float latency = 0);
     // Adds the server's own latency offset to an absolute timetag when
     // latency compensation is on, so scheduled and immediate messages keep

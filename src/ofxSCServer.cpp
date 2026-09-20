@@ -28,6 +28,7 @@
 #define TWO_TO_THE_32_OVER_ONE_MILLION 4295
 
 #define INTIALIZATION_ID 1917  //Init with numbers
+#define NRT_SYNC_ID 1918       //Answered once the NRT setup's async commands are done
 
 namespace {
 // One per thread: several servers may be driven from the same scheduling
@@ -150,6 +151,9 @@ void ofxSCServer::process()
                 serverInitializedEvent.notify(this);
 //                ofLog() << "Server Initialized";
             }
+            else if(id == NRT_SYNC_ID){
+                nrtSyncPending = false;
+            }
         }
 
 		/*-----------------------------------------------------------------------------
@@ -244,6 +248,14 @@ void ofxSCServer::resetAllocators()
 	std::fill(buffers.begin(), buffers.end(), nullptr);
 }
 
+void ofxSCServer::requestNRTSync(){
+    nrtSyncPending = true;
+    ofxOscMessage m;
+    m.setAddress("/sync");
+    m.addIntArg(NRT_SYNC_ID);
+    sendMsg(m);
+}
+
 void ofxSCServer::sendInitializationSyncMessage(){
     ofxOscMessage m3;
     m3.setAddress("/sync");
@@ -310,6 +322,8 @@ void ofxSCServer::sendStoredBundle(){
 void ofxSCServer::beginNRTCapture(bool captureOnly){
     nrtCapturing = true;
     nrtCaptureOnly = captureOnly;
+    nrtCaptureSuspended = false;
+    nrtEventsSuppressed = false;
     nrtTimeProviderEnabled = false;
     nrtTime = 0.0;
     nrtEndTime = -1.0;
@@ -324,6 +338,9 @@ void ofxSCServer::endNRTCapture(double endTime){
     nrtCapturing = false;
     nrtTimeProviderEnabled = false;
     nrtCaptureOnly = true;
+    nrtCaptureSuspended = false;
+    nrtSyncPending = false;
+    nrtEventsSuppressed = false;
     nrtCreatedNodeIDs.clear();
 }
 
@@ -366,7 +383,34 @@ bool ofxSCServer::shouldCaptureNRTAddress(const std::string& address) const{
     return ignored.count(address) == 0;
 }
 
+bool ofxSCServer::isTransientNRTMessage(const ofxOscMessage& message) const{
+    const std::string address = message.getAddress();
+
+    if(address == "/u_cmd"){
+        // A unit command's selector is its first string argument. VSTPlugin's
+        // /midi_msg and its relatives are events; /open, /program_read and
+        // /set are state.
+        for(std::size_t i = 0; i < message.getNumArgs(); i++){
+            if(message.getArgType(i) != OFXOSC_TYPE_STRING) continue;
+            return message.getArgAsString(i).rfind("/midi", 0) == 0;
+        }
+        return false;
+    }
+
+    if(address == "/n_set" || address == "/n_setn" || address == "/n_fill"){
+        // SuperCollider names trigger-rate controls with a t_ prefix; setting
+        // one fires it rather than storing a value.
+        for(std::size_t i = 0; i < message.getNumArgs(); i++){
+            if(message.getArgType(i) != OFXOSC_TYPE_STRING) continue;
+            if(message.getArgAsString(i).rfind("t_", 0) == 0) return true;
+        }
+    }
+    return false;
+}
+
 bool ofxSCServer::shouldCaptureNRTMessage(const ofxOscMessage& message){
+    if(nrtEventsSuppressed && isTransientNRTMessage(message)) return false;
+
     const std::string address = message.getAddress();
 
     // Rebuilding the live graph can resend the same creation command several
@@ -392,6 +436,7 @@ bool ofxSCServer::shouldCaptureNRTMessage(const ofxOscMessage& message){
 }
 
 void ofxSCServer::captureNRTMessage(const ofxOscMessage& message){
+    if(nrtCaptureSuspended) return;
     NRTEvent event;
     event.time = getNRTEventTime();
     if(!appendNRTMessage(event.bundle, message)) return;
@@ -399,6 +444,7 @@ void ofxSCServer::captureNRTMessage(const ofxOscMessage& message){
 }
 
 void ofxSCServer::captureNRTBundle(const ofxOscBundle& bundle){
+    if(nrtCaptureSuspended) return;
     if(bundle.getMessageCount() == 0 && bundle.getBundleCount() == 0) return;
     NRTEvent event;
     event.time = getNRTEventTime();
