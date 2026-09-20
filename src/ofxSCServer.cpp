@@ -16,6 +16,7 @@
 #include "ofxOsc.h"
 #include "ofxSCNode.h"
 #include <algorithm>
+#include <set>
 #include <chrono>
 #include <cstdint>
 #include <fstream>
@@ -352,9 +353,17 @@ double ofxSCServer::getNRTEventTime() const{
 }
 
 bool ofxSCServer::shouldCaptureNRTAddress(const std::string& address) const{
-    // Transport queries have no useful role in an offline score.
-    return address != "/status" && address != "/notify" && address != "/sync"
-        && address != "/dumpOSC" && address != "/quit" && address != "/g_queryTree";
+    // A query asks the server to reply. Offline there is nobody to reply to,
+    // so every one of these is dead weight -- and a node polling a control bus
+    // each frame can easily outnumber the actual music in the score by a
+    // hundred to one.
+    static const std::set<std::string> ignored = {
+        "/status", "/notify", "/sync", "/dumpOSC", "/quit", "/g_queryTree",
+        "/g_dumpTree", "/version",
+        "/c_get", "/c_getn", "/b_get", "/b_getn", "/b_query",
+        "/n_query", "/s_get", "/s_getn", "/u_query"
+    };
+    return ignored.count(address) == 0;
 }
 
 bool ofxSCServer::shouldCaptureNRTMessage(const ofxOscMessage& message){
@@ -419,15 +428,22 @@ void ofxSCServer::appendNRTBundleContents(ofxOscBundle& destination, const ofxOs
 }
 
 bool ofxSCServer::writeNRTScore(const std::string& path, double endTime) const{
-    std::vector<NRTEvent> events = nrtEvents;
-    std::stable_sort(events.begin(), events.end(), [](const NRTEvent& a, const NRTEvent& b){
-        return a.time < b.time;
+    // Sort pointers, never NRTEvent values. ofxOscBundle::copy() appends to
+    // the destination instead of replacing it, and because the class declares
+    // a copy constructor it gets no move assignment -- so every "move" a sort
+    // performs is really an append onto an already-populated bundle, and each
+    // merge pass doubles the messages in the score.
+    std::vector<const NRTEvent*> events;
+    events.reserve(nrtEvents.size());
+    for(const auto& event : nrtEvents) events.push_back(&event);
+    std::stable_sort(events.begin(), events.end(), [](const NRTEvent* a, const NRTEvent* b){
+        return a->time < b->time;
     });
 
     double finish = endTime >= 0.0 ? endTime : nrtEndTime;
     if(finish < 0.0){
         finish = 0.0;
-        for(const auto& event : events) finish = std::max(finish, event.time);
+        for(const auto* event : events) finish = std::max(finish, event->time);
         finish += 0.1;
     }
     finish = std::max(0.0, finish);
@@ -457,8 +473,8 @@ bool ofxSCServer::writeNRTScore(const std::string& path, double endTime) const{
         return (whole << 32) | std::min<uint64_t>(fraction, 0xffffffffULL);
     };
 
-    for(const auto& event : events){
-        writePacket(osc.serializeScoreBundle(event.bundle, scoreTimeTag(event.time)));
+    for(const auto* event : events){
+        writePacket(osc.serializeScoreBundle(event->bundle, scoreTimeTag(event->time)));
     }
 
     // Keep the final audio block at the requested duration. scsynth does not
