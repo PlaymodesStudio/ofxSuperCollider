@@ -57,7 +57,7 @@ public:
     void sendMsgAt(ofxOscMessage& message, uint64_t timetag);
     void sendBundleAt(ofxOscBundle& bundle, uint64_t timetag);
     // Builds a timetag from a std::chrono::steady_clock instant in
-    // microseconds (the domain ofxOceanodeTransportState::steadyTimeUs uses).
+    // microseconds, the domain a host's transport clock normally works in.
     static uint64_t timetagForSteadyTimeUs(uint64_t steadyTimeUs);
     // Now, optionally offset by a number of seconds. Microsecond resolution.
     static uint64_t timetagNow(double offsetSeconds = 0.0);
