@@ -298,8 +298,8 @@ bool ofxSCServer::getWaitToSend(){
 }
 
 void ofxSCServer::sendStoredBundle(){
-    if(nrtCapturing){
-        if(toSendBundle.getMessageCount() > 0) captureNRTBundle(toSendBundle);
+    if(nrtCapturing && toSendBundle.getMessageCount() > 0) captureNRTBundle(toSendBundle);
+    if(nrtCapturing && nrtCaptureOnly){
         toSendBundle.clear();
         return;
     }
