@@ -473,6 +473,53 @@ void ofxSCServer::appendNRTBundleContents(ofxOscBundle& destination, const ofxOs
     }
 }
 
+int ofxSCServer::replayBuffersForNRT(){
+    int unrecoverable = 0;
+    for(std::size_t index = 0; index < buffers.size(); index++){
+        ofxSCBuffer* buffer = buffers[index];
+        if(buffer == nullptr) continue;
+
+        if(!buffer->path.empty()){
+            ofxOscMessage message;
+            if(buffer->readChannels.empty()){
+                message.setAddress("/b_allocRead");
+                message.addIntArg((int)index);
+                message.addStringArg(buffer->path);
+            }else{
+                // Mirror readChannel() exactly, or the buffer comes back with
+                // every channel of the file instead of the chosen ones.
+                message.setAddress("/b_allocReadChannel");
+                message.addIntArg((int)index);
+                message.addStringArg(buffer->path);
+                message.addIntArg(0);
+                message.addIntArg(0);
+                for(const int channel : buffer->readChannels) message.addIntArg(channel);
+            }
+            sendMsg(message);
+            continue;
+        }
+
+        // No path: the contents were recorded or generated into the server and
+        // exist nowhere else, so only the shape can be restored. Allocating it
+        // anyway keeps the buffer number valid and the render silent-but-sane
+        // rather than reading whatever a missing buffer yields.
+        if(buffer->frames > 0){
+            ofxOscMessage message;
+            message.setAddress("/b_alloc");
+            message.addIntArg((int)index);
+            message.addIntArg(buffer->frames);
+            message.addIntArg(std::max(1, buffer->channels));
+            sendMsg(message);
+        }
+        unrecoverable++;
+        ofLogWarning("ofxSCServer")
+            << "NRT capture: buffer " << index << " has no file to reload from ("
+            << buffer->frames << " frames, " << buffer->channels
+            << " ch); it will be empty in the render";
+    }
+    return unrecoverable;
+}
+
 int ofxSCServer::findNRTNodeID(const std::string& defName) const{
     int found = -1;
     for(const auto& event : nrtEvents){

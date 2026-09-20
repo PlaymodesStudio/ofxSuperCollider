@@ -94,6 +94,18 @@ public:
     bool areNRTEventsSuppressed() const { return nrtEventsSuppressed; }
     std::size_t getNRTEventCount() const { return nrtEvents.size(); }
     double getNRTTime() const { return nrtTime; }
+    // Re-issues the load command for every buffer the server currently holds.
+    // An NRT render is a fresh scsynth with an empty buffer table, and a
+    // sample is normally read once when a preset loads -- long before a
+    // capture starts -- so the capture never sees that command and the score
+    // has no way to recreate it. The synth is then created pointing at a
+    // buffer number that holds nothing, and scsynth renders silence while
+    // logging only "Buffer UGen: no buffer data". Call this while capturing
+    // and before the graph is rebuilt, so the loads land at score time zero
+    // ahead of every /s_new. Returns the number of buffers that could not be
+    // recreated because their contents came from somewhere other than a file.
+    int replayBuffersForNRT();
+
     // Node id the captured score itself gives to the last synth created from
     // `defName`. The live server keeps allocating node ids after a capture, so
     // the id a node object reports now is not the id that exists inside the

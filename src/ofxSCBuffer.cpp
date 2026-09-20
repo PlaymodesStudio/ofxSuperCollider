@@ -31,6 +31,7 @@ void ofxSCBuffer::read(std::string path)
 	// XXX do we need to strncpy this?
 	// i think so.
 	this->path.assign(path);
+	this->readChannels.clear();
 	
 	ofxOscMessage m;
 	m.setAddress("/b_allocRead");
@@ -48,6 +49,7 @@ void ofxSCBuffer::readChannel(std::string path, std::vector<int> channelsToRead)
     // XXX do we need to strncpy this?
     // i think so.
     this->path.assign(path);
+    this->readChannels = channelsToRead;
     
     ofxOscMessage m;
     m.setAddress("/b_allocReadChannel");

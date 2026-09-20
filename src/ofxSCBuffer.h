@@ -45,5 +45,9 @@ public:
 	bool ready;
 	
 	std::string path;
+	// Set only by readChannel(); empty means the whole file was read. Kept so
+	// the buffer can be recreated later (an NRT render starts a fresh scsynth
+	// whose buffer table is empty) with the same channel count it has now.
+	std::vector<int> readChannels;
 	
 };
