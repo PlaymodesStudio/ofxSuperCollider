@@ -94,7 +94,18 @@ public:
     bool areNRTEventsSuppressed() const { return nrtEventsSuppressed; }
     std::size_t getNRTEventCount() const { return nrtEvents.size(); }
     double getNRTTime() const { return nrtTime; }
-    bool writeNRTScore(const std::string& path, double endTime = -1.0) const;
+    // Node id the captured score itself gives to the last synth created from
+    // `defName`. The live server keeps allocating node ids after a capture, so
+    // the id a node object reports now is not the id that exists inside the
+    // score; editing a score has to use the score's own ids. Returns -1 when
+    // the score creates no such synth.
+    int findNRTNodeID(const std::string& defName) const;
+    // appendAtZero is written as one extra packet at score time zero, after
+    // everything else already there. Used to render a variant of the same
+    // capture -- pointing the file-writing synth at a different bus yields a
+    // stem without re-capturing anything.
+    bool writeNRTScore(const std::string& path, double endTime = -1.0,
+                       const std::vector<ofxOscMessage>& appendAtZero = {}) const;
 
     // Every sendMsg()/sendBundle() made on this thread while a scope is alive
     // carries this timetag. It lets existing "set this parameter on the

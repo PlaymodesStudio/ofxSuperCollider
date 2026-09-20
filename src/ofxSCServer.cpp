@@ -473,7 +473,25 @@ void ofxSCServer::appendNRTBundleContents(ofxOscBundle& destination, const ofxOs
     }
 }
 
-bool ofxSCServer::writeNRTScore(const std::string& path, double endTime) const{
+int ofxSCServer::findNRTNodeID(const std::string& defName) const{
+    int found = -1;
+    for(const auto& event : nrtEvents){
+        const ofxOscBundle& bundle = event.bundle;
+        for(std::size_t i = 0; i < bundle.getMessageCount(); i++){
+            const ofxOscMessage& message = bundle.getMessageAt(i);
+            if(message.getAddress() != "/s_new") continue;
+            if(message.getNumArgs() < 2) continue;
+            if(message.getArgType(0) != OFXOSC_TYPE_STRING) continue;
+            if(message.getArgAsString(0) != defName) continue;
+            if(message.getArgType(1) != OFXOSC_TYPE_INT32) continue;
+            found = message.getArgAsInt32(1);
+        }
+    }
+    return found;
+}
+
+bool ofxSCServer::writeNRTScore(const std::string& path, double endTime,
+                               const std::vector<ofxOscMessage>& appendAtZero) const{
     // Sort pointers, never NRTEvent values. ofxOscBundle::copy() appends to
     // the destination instead of replacing it, and because the class declares
     // a copy constructor it gets no move assignment -- so every "move" a sort
@@ -519,9 +537,22 @@ bool ofxSCServer::writeNRTScore(const std::string& path, double endTime) const{
         return (whole << 32) | std::min<uint64_t>(fraction, 0xffffffffULL);
     };
 
+    bool extrasWritten = appendAtZero.empty();
+    auto writeExtras = [&](){
+        if(extrasWritten) return;
+        extrasWritten = true;
+        ofxOscBundle extras;
+        for(const auto& message : appendAtZero) extras.addMessage(message);
+        writePacket(osc.serializeScoreBundle(extras, scoreTimeTag(0.0)));
+    };
+
     for(const auto* event : events){
+        // The extras belong after everything already at time zero, so they win
+        // over the values the capture recorded there.
+        if(event->time > 0.0) writeExtras();
         writePacket(osc.serializeScoreBundle(event->bundle, scoreTimeTag(event->time)));
     }
+    writeExtras();
 
     // Keep the final audio block at the requested duration. scsynth does not
     // reliably terminate an NRT process just because the score file reached
