@@ -44,10 +44,10 @@ public:
     void createAndRun(int position = 0, int groupID = 1, bool run = true);
 	void grain(int position = 0, int groupID = 1);
 	
-	void set(std::string arg, double value);
-	void set(std::string arg, int value);
-    void set(std::string arg, std::vector<float> values);
-    void set(std::string arg, std::vector<int> values);
+	void set(const std::string& arg, double value);
+	void set(const std::string& arg, int value);
+    void set(const std::string& arg, const std::vector<float>& values);
+    void set(const std::string& arg, const std::vector<int>& values);
     
     void setMultiple(std::string arg, float value, int quantity);
     void setMultiple(std::string arg, int value, int quantity);

@@ -193,7 +193,7 @@ void ofxSCSynth::grain(int position, int groupID)
 	create(position, groupID);
 }
 
-void ofxSCSynth::set(std::string arg, double value)
+void ofxSCSynth::set(const std::string& arg, double value)
 {
 	if (created)
 	{
@@ -211,7 +211,7 @@ void ofxSCSynth::set(std::string arg, double value)
     }
 }
 
-void ofxSCSynth::set(std::string arg, int value)
+void ofxSCSynth::set(const std::string& arg, int value)
 {
 	
 	if (created)
@@ -230,7 +230,7 @@ void ofxSCSynth::set(std::string arg, int value)
     }
 }
 
-void ofxSCSynth::set(std::string arg, std::vector<float> values)
+void ofxSCSynth::set(const std::string& arg, const std::vector<float>& values)
 {
    
     if (created)
@@ -250,7 +250,7 @@ void ofxSCSynth::set(std::string arg, std::vector<float> values)
     }
 }
 
-void ofxSCSynth::set(std::string arg, std::vector<int> values)
+void ofxSCSynth::set(const std::string& arg, const std::vector<int>& values)
 {
     if (created)
     {
