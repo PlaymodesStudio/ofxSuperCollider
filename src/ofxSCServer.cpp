@@ -128,7 +128,7 @@ void ofxSCServer::process()
                 resetAllocators();
                 serverBootedEvent.notify(this);
                 initializing = true;
-//                ofLog() << "Server Booted";
+                ofLog() << "Server Booted";
             }
         }
 		
@@ -149,7 +149,7 @@ void ofxSCServer::process()
             if(id == INTIALIZATION_ID && initializing){
                 initializing = false;
                 serverInitializedEvent.notify(this);
-//                ofLog() << "Server Initialized";
+                ofLog() << "Server Initialized";
             }
             else if(id == NRT_SYNC_ID){
                 nrtSyncPending = false;
