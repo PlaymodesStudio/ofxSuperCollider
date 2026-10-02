@@ -10,6 +10,8 @@
  */
 
 #include "ofxOscSenderReceiver.h"
+#include <array>
+#include <memory>
 
 //--------------------------------------------------------------
 ofxOscSenderReceiver::~ofxOscSenderReceiver() {
@@ -168,69 +170,55 @@ void ofxOscSenderReceiver::sendMessage(const ofxOscMessage &message, bool wrapIn
 }
 
 namespace {
-// Serialization scratch space, one per thread, grown on demand and never
-// shrunk. Each serializer used to value-initialise a fresh 320 KB vector --
-// allocate it and zero every byte -- to encode a packet that is usually
-// forty bytes. oscpack writes every byte it emits, padding included, so the
-// buffer never needed zeroing: upstream ofxOsc encodes into an uninitialised
-// stack array of the same size. The packet is copied out at its exact size.
-std::vector<char>& serializationScratch(){
-    thread_local std::vector<char> scratch(327680);
-    return scratch;
+// Synth cleanup can send OSC from static destructors, after thread_local
+// objects have already been destroyed. Own all scratch storage per call.
+// Small control messages use the stack; large SynthDef/score packets grow
+// uninitialized heap storage only when needed.
+template<typename WritePacket>
+std::vector<char> serializePacket(WritePacket writePacket){
+    std::array<char, 1024> localBuffer;
+    std::unique_ptr<char[]> heapBuffer;
+    char* data = localBuffer.data();
+    std::size_t capacity = localBuffer.size();
+    constexpr std::size_t maxCapacity = 327680u * 128u;
+    while(true){
+        try{
+            osc::OutboundPacketStream packet(data, capacity);
+            writePacket(packet);
+            if(!packet.IsReady()) throw osc::OutOfBufferMemoryException();
+            return std::vector<char>(packet.Data(), packet.Data() + packet.Size());
+        }catch(const osc::OutOfBufferMemoryException&){
+            if(capacity == maxCapacity) throw;
+            capacity = capacity < 327680u ? 327680u : capacity * 2;
+            heapBuffer.reset(new char[capacity]);
+            data = heapBuffer.get();
+        }
+    }
 }
 }
 
 std::vector<char> ofxOscSenderReceiver::serializeBundle(const ofxOscBundle &bundle, uint64_t timetag) const{
-    // SynthDef blobs can be considerably larger than ordinary OSC control
-    // messages. Grow the packet until oscpack accepts the complete payload.
-    std::vector<char>& buffer = serializationScratch();
-    for(int attempt = 0; attempt < 8; attempt++){
-        try{
-            osc::OutboundPacketStream p(buffer.data(), buffer.size());
-            p << osc::BundleInitiator(timetag);
-            appendBundle(bundle, p);
-            p << osc::EndBundle;
-            if(!p.IsReady()) throw osc::OutOfBufferMemoryException();
-            return std::vector<char>(p.Data(), p.Data() + p.Size());
-        }catch(const osc::OutOfBufferMemoryException&){
-            buffer.resize(buffer.size() * 2);
-        }
-    }
-    throw osc::OutOfBufferMemoryException("OSC packet exceeds serialization limit");
+    return serializePacket([&](osc::OutboundPacketStream& p){
+        p << osc::BundleInitiator(timetag);
+        appendBundle(bundle, p);
+        p << osc::EndBundle;
+    });
 }
 
 std::vector<char> ofxOscSenderReceiver::serializeScoreBundle(const ofxOscBundle &bundle, uint64_t timetag) const{
-    std::vector<char>& buffer = serializationScratch();
-    for(int attempt = 0; attempt < 8; attempt++){
-        try{
-            osc::OutboundPacketStream p(buffer.data(), buffer.size());
-            p << osc::BundleInitiator(timetag);
-            appendBundleContents(bundle, p);
-            p << osc::EndBundle;
-            if(!p.IsReady()) throw osc::OutOfBufferMemoryException();
-            return std::vector<char>(p.Data(), p.Data() + p.Size());
-        }catch(const osc::OutOfBufferMemoryException&){
-            buffer.resize(buffer.size() * 2);
-        }
-    }
-    throw osc::OutOfBufferMemoryException("OSC score packet exceeds serialization limit");
+    return serializePacket([&](osc::OutboundPacketStream& p){
+        p << osc::BundleInitiator(timetag);
+        appendBundleContents(bundle, p);
+        p << osc::EndBundle;
+    });
 }
 
 std::vector<char> ofxOscSenderReceiver::serializeMessage(const ofxOscMessage &message, bool wrapInBundle, uint64_t timetag) const{
-    std::vector<char>& buffer = serializationScratch();
-    for(int attempt = 0; attempt < 8; attempt++){
-        try{
-            osc::OutboundPacketStream p(buffer.data(), buffer.size());
-            if(wrapInBundle) p << osc::BundleInitiator(timetag);
-            appendMessage(message, p);
-            if(wrapInBundle) p << osc::EndBundle;
-            if(!p.IsReady()) throw osc::OutOfBufferMemoryException();
-            return std::vector<char>(p.Data(), p.Data() + p.Size());
-        }catch(const osc::OutOfBufferMemoryException&){
-            buffer.resize(buffer.size() * 2);
-        }
-    }
-    throw osc::OutOfBufferMemoryException("OSC packet exceeds serialization limit");
+    return serializePacket([&](osc::OutboundPacketStream& p){
+        if(wrapInBundle) p << osc::BundleInitiator(timetag);
+        appendMessage(message, p);
+        if(wrapInBundle) p << osc::EndBundle;
+    });
 }
 
 //--------------------------------------------------------------
