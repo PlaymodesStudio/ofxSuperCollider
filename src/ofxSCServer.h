@@ -71,6 +71,12 @@ public:
     void setNRTTimeProvider(std::function<double()> provider);
     void setNRTTimeProviderEnabled(bool enabled);
     bool isNRTCapturing() const { return nrtCapturing; }
+    // Choose whether captured OSC is also sent to the realtime server. This
+    // can be changed without restarting/clearing the capture so setup commands
+    // that only belong to a fresh NRT server (notably buffer allocations) can
+    // be recorded without disturbing buffers already used by the live graph.
+    void setNRTCaptureOnly(bool captureOnly){ nrtCaptureOnly = captureOnly; }
+    bool isNRTCaptureOnly() const { return nrtCaptureOnly; }
     // A /sync round trip: the server answers only once every asynchronous
     // command issued before it has finished. Loading the SynthDef tree is the
     // slow one -- seconds, not milliseconds -- and anything that waits for it
