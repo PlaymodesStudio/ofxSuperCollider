@@ -16,6 +16,7 @@
 void ofxSCGroup::create(int position, int groupID, bool parallel)
 {
 	nodeID = ofxSCNode::id_base++;
+	getServer()->invalidateNodeIndex();
 	
 	ofxOscMessage m;
 	

@@ -22,6 +22,7 @@
 #include <functional>
 #include <string>
 #include <unordered_set>
+#include <unordered_map>
 #include <deque>
 
 #include "ofxOsc.h"
@@ -184,6 +185,9 @@ public:
     
     void addNodeListener(ofxSCNode* node);
     void removeNodeListener(ofxSCNode* node);
+    // Call when a registered node's nodeID changes, so node feedback keeps
+    // reaching it (see dispatchNodeFeedback).
+    void invalidateNodeIndex(){ nodeIndexDirty = true; }
     
     ofEvent<ofxOscMessage> newFeedbackMessage;
     
@@ -204,6 +208,13 @@ protected:
     // them, and still waiting for process() so their order is kept.
     std::deque<ofxOscMessage> deferredMessages;
     std::map<ofxSCNode*, std::function<void(ofxOscMessage&)>> nodeFeedbackFunctions;
+    // Node feedback (/n_go, /n_end, /tr, SendReply...) used to be offered to
+    // every registered node, each one reading the message's first argument to
+    // see whether it was the addressee. The nodes are now indexed by nodeID,
+    // rebuilt lazily whenever a node registers, unregisters or changes id.
+    void dispatchNodeFeedback(ofxOscMessage& m);
+    std::unordered_map<int, std::vector<ofxSCNode*>> nodeIndex;
+    bool nodeIndexDirty = true;
     
     bool waitToSend;
     

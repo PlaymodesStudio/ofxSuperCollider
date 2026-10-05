@@ -202,7 +202,7 @@ void ofxSCServer::process()
         //Node Notifications from server (n_go, n_end.., ugen notifications)
         //And Poll replies from synths
         else{
-            for(auto &nff : nodeFeedbackFunctions) nff.second(m);
+            dispatchNodeFeedback(m);
         }
 	}
 	
@@ -744,10 +744,47 @@ void ofxSCServer::addNodeListener(ofxSCNode* node){
         if(node != nullptr && node->nodeID == msg.getArgAsInt(0))
             node->feedbackListener(msg);
     };
+    nodeIndexDirty = true;
 }
 
 void ofxSCServer::removeNodeListener(ofxSCNode *node){
     nodeFeedbackFunctions.erase(node);
+    nodeIndexDirty = true;
+}
+
+void ofxSCServer::dispatchNodeFeedback(ofxOscMessage& m){
+    if(m.getNumArgs() == 0) return;
+    const int id = m.getArgAsInt(0);
+
+    if(nodeIndexDirty){
+        // Built in nodeFeedbackFunctions order, the order nodes were offered
+        // messages in before.
+        nodeIndex.clear();
+        for(auto &nff : nodeFeedbackFunctions){
+            if(nff.first != nullptr) nodeIndex[nff.first->nodeID].push_back(nff.first);
+        }
+        nodeIndexDirty = false;
+    }
+
+    std::vector<ofxSCNode*> addressees;
+    auto found = nodeIndex.find(id);
+    if(found != nodeIndex.end()){
+        addressees = found->second;
+    }else{
+        // Safety net for a nodeID changed without invalidateNodeIndex(): the
+        // old full scan. Normally reached only by messages for nodes that are
+        // already gone (an /n_end after the object was deleted).
+        for(auto &nff : nodeFeedbackFunctions){
+            if(nff.first != nullptr && nff.first->nodeID == id) addressees.push_back(nff.first);
+        }
+        if(!addressees.empty()) nodeIndexDirty = true;
+    }
+
+    for(auto node : addressees){
+        // A handler may unregister (delete) another node, or change its id.
+        if(nodeFeedbackFunctions.count(node) == 0 || node->nodeID != id) continue;
+        node->feedbackListener(m);
+    }
 }
 
 ofxSCServer::ScopedTimetag::ScopedTimetag(uint64_t timetag) : previous(scopedTimetagValue){

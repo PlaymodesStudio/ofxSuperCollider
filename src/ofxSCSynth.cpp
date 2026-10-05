@@ -28,8 +28,10 @@ void ofxSCSynth::create(int position, int groupID)
 {
 	ofxOscMessage m;
 
-	if (nodeID == 0)
+	if (nodeID == 0){
 		nodeID = ofxSCNode::id_base++;
+		getServer()->invalidateNodeIndex();
+	}
 	
 	m.setAddress("/s_new");
 	m.addStringArg(name.c_str());
@@ -105,8 +107,10 @@ void ofxSCSynth::createAndRun(int position, int groupID, bool run){
     ofxOscMessage m;
 
     //TODO: Reuse nodeIDs
-    if (nodeID == 0)
+    if (nodeID == 0){
         nodeID = ofxSCNode::id_base++;
+        getServer()->invalidateNodeIndex();
+    }
     
     m.setAddress("/s_new");
     m.addStringArg(name.c_str());
@@ -190,6 +194,7 @@ void ofxSCSynth::createAndRun(int position, int groupID, bool run){
 void ofxSCSynth::grain(int position, int groupID)
 {
 	nodeID = -1;
+	getServer()->invalidateNodeIndex();
 	create(position, groupID);
 }
 
