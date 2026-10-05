@@ -61,6 +61,11 @@ ofxSCServer::ofxSCServer(std::string hostname, unsigned int port, unsigned int r
 
     osc.setup(hostname, port, receivePort);
     listener = ofEvents().update.newListener(this, &ofxSCServer::_process);
+    // Control replies are taken in before the app's update, so the nodes that
+    // poll there read what the server answered since the previous frame.
+    earlyUpdateListener = ofEvents().update.newListener(this, &ofxSCServer::_receiveControlReplies, OF_EVENT_ORDER_BEFORE_APP);
+    // Requests made while drawing go out at the end of the same frame.
+    lateDrawListener = ofEvents().draw.newListener(this, &ofxSCServer::_flushControlRequests, OF_EVENT_ORDER_AFTER_APP);
 	
 	allocatorBusAudio = new ofxSCResourceAllocator(numAudioBusses);
 	allocatorBusAudio->pos = numInputs + numOutputs;
@@ -71,6 +76,7 @@ ofxSCServer::ofxSCServer(std::string hostname, unsigned int port, unsigned int r
     
     audioBusses.resize(numAudioBusses);
     controlBusses.resize(numControlBusses);
+    controlBusChannelOwners.assign(numControlBusses, nullptr);
     buffers.resize(numBuffers);
 	
 	if (plocal == 0)
@@ -106,16 +112,25 @@ void ofxSCServer::_process(ofEventArgs &e)
 
 void ofxSCServer::process()
 {
+    // The bus reads the nodes asked for during this frame's update
+    flushControlRequests();
+
     ofxOscMessage m;
     m.setAddress("/status");
     osc.sendMessage(m);
     
 //#ifdef _ofxOscSENDERRECEIVER_H
 
-	while(osc.hasWaitingMessages())
+	// Messages set aside by _receiveControlReplies() arrived first.
+	while(!deferredMessages.empty() || osc.hasWaitingMessages())
 	{
 		ofxOscMessage m;
-		osc.getNextMessage(m);
+		if(!deferredMessages.empty()){
+			m = std::move(deferredMessages.front());
+			deferredMessages.pop_front();
+		}else if(!osc.getNextMessage(m)){
+			break;
+		}
 //		printf("** got OSC! %s\n", m.getAddress().c_str());
 //        ofLog() << m;
         
@@ -178,28 +193,7 @@ void ofxSCServer::process()
         {
         }
         
-		else if (m.getAddress() == "/c_set"){
-			int firstIndex = m.getArgAsInt32(0);
-			for(int i = 0; i < m.getNumArgs(); i+=2){
-				int index = m.getArgAsInt32(i);
-				int arrayIndex = index - firstIndex;
-				
-				if(firstIndex >= 0 && firstIndex < (int)controlBusses.size() &&
-				   arrayIndex >= 0 &&
-				   controlBusses[firstIndex] != NULL) {
-					
-					try {
-						ofxSCBus* bus = controlBusses[firstIndex];
-						// Add corruption check
-						if(bus->channels > 0 &&
-						   arrayIndex < bus->readValues.size()) {
-							bus->readValues[arrayIndex] = m.getArgAsFloat(i+1);
-						}
-					} catch(...) {
-						// Skip corrupted bus data
-					}
-				}
-			}
+		else if (handleControlReply(m)){
 		}
         else if (m.getAddress() == "/g_queryTree.reply"){
             queryTreeReplyEvent.notify(m);
@@ -217,7 +211,133 @@ void ofxSCServer::process()
 //	fprintf(stderr, "This version of ofxOsc does not have support for sender/receive objects. Please update to enable receiving responses from SuperCollider.\n");
 //
 //#endif
-	
+
+	// Requests made by feedback handlers above
+	flushControlRequests();
+}
+
+void ofxSCServer::_receiveControlReplies(ofEventArgs &e)
+{
+	while(osc.hasWaitingMessages())
+	{
+		ofxOscMessage m;
+		if(!osc.getNextMessage(m)) break;
+		if(!handleControlReply(m)) deferredMessages.push_back(std::move(m));
+	}
+}
+
+void ofxSCServer::_flushControlRequests(ofEventArgs &e)
+{
+	flushControlRequests();
+}
+
+bool ofxSCServer::handleControlReply(ofxOscMessage& m)
+{
+	const std::string& address = m.getAddress();
+	const bool isSet = address == "/c_set";
+	if(!isSet && address != "/c_setn") return false;
+	try {
+		const std::size_t numArgs = m.getNumArgs();
+		if(isSet){
+			// index, value, index, value...
+			for(std::size_t i = 0; i + 1 < numArgs; i += 2){
+				writeControlValue(m.getArgAsInt32(i), m.getArgAsFloat(i + 1));
+			}
+		}else{
+			// index, count, value * count, index, count...
+			std::size_t i = 0;
+			while(i + 1 < numArgs){
+				const int index = m.getArgAsInt32(i);
+				const int count = m.getArgAsInt32(i + 1);
+				i += 2;
+				for(int k = 0; k < count && i < numArgs; k++, i++){
+					writeControlValue(index + k, m.getArgAsFloat(i));
+				}
+			}
+		}
+	} catch(...) {
+		// Skip corrupted bus data
+	}
+	return true;
+}
+
+void ofxSCServer::writeControlValue(int index, float value)
+{
+	if(index < 0 || index >= (int)controlBusChannelOwners.size()) return;
+	ofxSCBus* bus = controlBusChannelOwners[index];
+	if(bus == nullptr || bus->channels <= 0) return;
+	const int offset = index - bus->index;
+	if(offset >= 0 && offset < (int)bus->readValues.size()){
+		bus->readValues[offset] = value;
+	}
+}
+
+void ofxSCServer::requestControlValues(int index, int channels)
+{
+	if(index < 0 || channels <= 0) return;
+	pendingControlRequests.emplace_back(index, channels);
+}
+
+void ofxSCServer::flushControlRequests()
+{
+	if(pendingControlRequests.empty()) return;
+	std::vector<std::pair<int, int>> requests;
+	requests.swap(pendingControlRequests);
+
+	// Sorted (index, end) runs; touching or overlapping requests merge, which
+	// also drops a bus asked for twice in the same frame.
+	std::sort(requests.begin(), requests.end());
+	std::vector<std::pair<int, int>> runs;
+	for(const auto& request : requests){
+		const int end = request.first + request.second;
+		if(!runs.empty() && request.first <= runs.back().second){
+			runs.back().second = std::max(runs.back().second, end);
+		}else{
+			runs.emplace_back(request.first, end);
+		}
+	}
+
+	// A reply carries every value it asked for: keep each one well inside a
+	// UDP datagram and scsynth's reply buffer.
+	constexpr int maxValuesPerRequest = 1024;
+	ofxOscMessage request;
+	request.setAddress("/c_getn");
+	int valuesInRequest = 0;
+	for(const auto& run : runs){
+		int start = run.first;
+		int remaining = run.second - run.first;
+		while(remaining > 0){
+			const int count = std::min(remaining, maxValuesPerRequest - valuesInRequest);
+			request.addIntArg(start);
+			request.addIntArg(count);
+			valuesInRequest += count;
+			start += count;
+			remaining -= count;
+			if(valuesInRequest == maxValuesPerRequest){
+				sendMsg(request);
+				request.clear();
+				request.setAddress("/c_getn");
+				valuesInRequest = 0;
+			}
+		}
+	}
+	if(valuesInRequest > 0) sendMsg(request);
+}
+
+void ofxSCServer::setControlBusOwner(int index, int channels, ofxSCBus* owner)
+{
+	if(index < 0) return;
+	for(int i = index; i < index + channels && i < (int)controlBusChannelOwners.size(); i++){
+		controlBusChannelOwners[i] = owner;
+	}
+}
+
+void ofxSCServer::reassignControlBusOwner(int index, int channels, ofxSCBus* from, ofxSCBus* to)
+{
+	if(index < 0) return;
+	for(int i = index; i < index + channels && i < (int)controlBusChannelOwners.size(); i++){
+		if(controlBusChannelOwners[i] == from) controlBusChannelOwners[i] = to;
+	}
 }
 
 void ofxSCServer::notify()
@@ -245,6 +365,8 @@ void ofxSCServer::resetAllocators()
 
 	std::fill(audioBusses.begin(), audioBusses.end(), nullptr);
 	std::fill(controlBusses.begin(), controlBusses.end(), nullptr);
+	std::fill(controlBusChannelOwners.begin(), controlBusChannelOwners.end(), nullptr);
+	pendingControlRequests.clear();
 	std::fill(buffers.begin(), buffers.end(), nullptr);
 }
 

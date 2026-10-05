@@ -27,6 +27,7 @@ ofxSCBus::ofxSCBus(int rate, int channels, ofxSCServer *server)
 	{
 		this->index = server->allocatorBusControl->alloc(this->channels);
         server->controlBusses[index] = this;
+        server->setControlBusOwner(index, this->channels, this);
         readValues.resize(this->channels, 0);
 	}
 	else
@@ -62,6 +63,8 @@ ofxSCBus& ofxSCBus::operator=(const ofxSCBus& other) {
 // Move constructor
 ofxSCBus::ofxSCBus(ofxSCBus&& other) noexcept
     : server(other.server), rate(other.rate), index(other.index), channels(other.channels), readValues(std::move(other.readValues)) {
+    if(server != nullptr && rate == RATE_CONTROL)
+        server->reassignControlBusOwner(index, channels, &other, this);
     other.server = nullptr;
     other.rate = 0;
     other.index = 0;
@@ -76,6 +79,8 @@ ofxSCBus& ofxSCBus::operator=(ofxSCBus&& other) noexcept {
         index = other.index;
         channels = other.channels;
         readValues = std::move(other.readValues);
+        if(server != nullptr && rate == RATE_CONTROL)
+            server->reassignControlBusOwner(index, channels, &other, this);
 
         other.server = nullptr;
         other.rate = 0;
@@ -99,6 +104,7 @@ void ofxSCBus::free()
 	// nothing is actually allocated server-side,
 	// so all we need to do here is reflect the availability of this address
     if (this->rate == RATE_CONTROL){
+        server->reassignControlBusOwner(index, channels, this, nullptr);
 		server->allocatorBusControl->free(this->index);
         server->controlBusses[index] = NULL;
     }else{
@@ -109,6 +115,11 @@ void ofxSCBus::free()
 
 void ofxSCBus::requestValues()
 {
+    // Queued: the server sends every bus read of the frame in one /c_getn.
+    if (this->rate == RATE_CONTROL){
+        server->requestControlValues(index, channels);
+        return;
+    }
     ofxOscMessage m;
     m.setAddress("/c_get");
     for(int i = 0; i < channels; i++){

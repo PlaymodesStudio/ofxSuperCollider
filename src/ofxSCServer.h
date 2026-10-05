@@ -22,6 +22,7 @@
 #include <functional>
 #include <string>
 #include <unordered_set>
+#include <deque>
 
 #include "ofxOsc.h"
 #include "ofxOscSenderReceiver.h"
@@ -42,6 +43,23 @@ public:
 	
 	void process();
 	void _process(ofEventArgs &e);
+
+    // --- Control bus reads ----------------------------------------------------
+    // ofxSCBus::requestValues() used to send its own /c_get, so a patch polling
+    // N buses sent N packets per frame and got N replies back. Requests are now
+    // queued and sent together as one /c_getn (or a few, for very large reads),
+    // and the /c_setn reply is spread over every bus it covers.
+    // Flushed when the server processes (after the app's update, where the
+    // nodes poll), again after the app's draw, and on demand.
+    void requestControlValues(int index, int channels);
+    void flushControlRequests();
+    // Which bus owns each control channel, so a reply covering several buses
+    // reaches all of them. Maintained by ofxSCBus.
+    void setControlBusOwner(int index, int channels, ofxSCBus* owner);
+    // Only the channels still owned by `from` change hands, so a bus freed
+    // late (after the allocator was reset and its range reused) leaves the new
+    // owner alone.
+    void reassignControlBusOwner(int index, int channels, ofxSCBus* from, ofxSCBus* to);
 	void notify();
     void sendInitializationSyncMessage();
 	void resetAllocators();
@@ -173,6 +191,18 @@ protected:
 
 	ofxOscSenderReceiver   osc;
     ofEventListener listener;
+    ofEventListener earlyUpdateListener;
+    ofEventListener lateDrawListener;
+    void _receiveControlReplies(ofEventArgs &e);
+    void _flushControlRequests(ofEventArgs &e);
+    // Handles /c_set and /c_setn. Returns false for any other address.
+    bool handleControlReply(ofxOscMessage& m);
+    void writeControlValue(int index, float value);
+    std::vector<ofxSCBus*> controlBusChannelOwners;
+    std::vector<std::pair<int, int>> pendingControlRequests; // (index, channels)
+    // Messages taken off the socket early, to reach the control replies among
+    // them, and still waiting for process() so their order is kept.
+    std::deque<ofxOscMessage> deferredMessages;
     std::map<ofxSCNode*, std::function<void(ofxOscMessage&)>> nodeFeedbackFunctions;
     
     bool waitToSend;
