@@ -474,7 +474,7 @@ void ofxSCSynth::resendStoredArgs(){
 
         if(value.second == 1){
             m_mapa.addStringArg(key.c_str());
-            m_mapa.addIntArg(value.second);
+            m_mapa.addIntArg(value.first);
         }else{
             m_mapan.addStringArg(key.c_str());
             m_mapan.addIntArg(value.first);
