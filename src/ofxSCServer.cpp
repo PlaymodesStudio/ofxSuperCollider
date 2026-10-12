@@ -153,9 +153,7 @@ void ofxSCServer::process()
 		 /*---------------------------------------------------------------------------*/
 		else if (m.getAddress() == "/done")
 		{
-//			int index = m.getArgAsInt32(1);
-//			printf("** buffer read completed, ID %d\n", index);
-//			buffers[index]->ready = true;
+            newFeedbackMessage.notify(m);
 		}
         
         else if (m.getAddress() == "/synced")
@@ -168,6 +166,9 @@ void ofxSCServer::process()
             }
             else if(id == NRT_SYNC_ID){
                 nrtSyncPending = false;
+            }
+            else{
+                newFeedbackMessage.notify(m);
             }
         }
 
@@ -187,6 +188,7 @@ void ofxSCServer::process()
 		// buffer alloc/read failed
 		else if (m.getAddress() == "/fail")
 		{
+            newFeedbackMessage.notify(m);
 		}
         
         else if (m.getAddress() == "/d_removed") //What it does? just one string argument.
@@ -376,6 +378,16 @@ void ofxSCServer::requestNRTSync(){
     m.setAddress("/sync");
     m.addIntArg(NRT_SYNC_ID);
     sendMsg(m);
+}
+
+int ofxSCServer::requestSync(){
+    // Clear of INTIALIZATION_ID and NRT_SYNC_ID
+    const int id = 100000 + (nextSyncId++ % 100000);
+    ofxOscMessage m;
+    m.setAddress("/sync");
+    m.addIntArg(id);
+    sendMsg(m);
+    return id;
 }
 
 void ofxSCServer::sendInitializationSyncMessage(){

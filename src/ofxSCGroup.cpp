@@ -26,7 +26,12 @@ void ofxSCGroup::create(int position, int groupID, bool parallel)
 	m.addIntArg(position);
 	m.addIntArg(groupID);
 	
-    getServer()->sendMsg(m);
+    // Sent as a bundle like ofxSCSynth::createAndRun: a bare message carries
+    // the server's latency timetag while synth bundles run on arrival, so a
+    // group sent with sendMsg would be placed after synths created after it.
+    ofxOscBundle bundle;
+    bundle.addMessage(m);
+    getServer()->sendBundle(bundle);
 	
 	created = true;
 }

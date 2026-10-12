@@ -102,6 +102,10 @@ public:
     // has to wait for this, not for a guess.
     void requestNRTSync();
     bool isNRTSyncPending() const { return nrtSyncPending; }
+    // Sends /sync with a fresh id and returns it. The matching /synced
+    // arrives through newFeedbackMessage once every asynchronous command sent
+    // before it (plugin /cmd loads included) has completed.
+    int requestSync();
 
     // Pauses recording into the score without ending the capture or stopping
     // anything being sent. Used while a capture is armed but not yet rolling:
@@ -189,6 +193,8 @@ public:
     // reaching it (see dispatchNodeFeedback).
     void invalidateNodeIndex(){ nodeIndexDirty = true; }
     
+    // Server replies not addressed to a node: /done, /fail and /synced for
+    // ids requested through requestSync().
     ofEvent<ofxOscMessage> newFeedbackMessage;
     
 protected:
@@ -243,6 +249,7 @@ protected:
     bool nrtCaptureOnly = true;
     bool nrtCaptureSuspended = false;
     bool nrtSyncPending = false;
+    int nextSyncId = 0;
     bool nrtEventsSuppressed = false;
     bool nrtTimeProviderEnabled = false;
     double nrtTime = 0.0;
