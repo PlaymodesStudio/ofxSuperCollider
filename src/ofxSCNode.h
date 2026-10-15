@@ -54,6 +54,9 @@ public:
     virtual void resendStoredArgs(){};
 
     bool isCreated() const { return created; }
+    // True once the server reported /n_end for this node (it freed itself,
+    // e.g. doneAction: 2, or was freed), until it is created again.
+    bool hasEnded() const { return ended; }
 		
     ofEvent<ofxOscMessage> newFeedbackMessage;
 protected:
@@ -62,6 +65,7 @@ protected:
     ofxSCServer* getServer();
 
 	bool created;
+	bool ended = false;
     
 private:
     

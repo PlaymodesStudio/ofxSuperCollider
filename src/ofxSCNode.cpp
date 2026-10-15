@@ -130,11 +130,13 @@ void ofxSCNode::moveAfter(int _nodeID){
 void ofxSCNode::feedbackListener(ofxOscMessage &msg){
     if(msg.getAddress() == "/n_go"){
         created = true;
+        ended = false;
         for(auto &m : storedMessages) server->sendMsg(m);
         storedMessages.clear();
         resendStoredArgs();
     }else if(msg.getAddress() == "/n_end"){
         created = false;
+        ended = true;
     }else if(msg.getAddress() == "/n_off"){
         
     }else if(msg.getAddress() == "/n_on"){
