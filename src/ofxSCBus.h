@@ -42,10 +42,13 @@ public:
 	
 	static int id_base;
 	
-	ofxSCServer *server;
-	int rate;
-	int index;
-	int channels;
+	ofxSCServer *server = nullptr;
+	int rate = RATE_AUDIO;
+	int index = -1;     // -1: owns no range (not allocated, freed, moved from or a copy)
+	int channels = 0;
     
     std::vector<float> readValues;
+
+private:
+    void retarget(ofxSCBus* from);
 };

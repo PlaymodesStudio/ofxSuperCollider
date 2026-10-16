@@ -101,7 +101,10 @@ public:
     // slow one -- seconds, not milliseconds -- and anything that waits for it
     // has to wait for this, not for a guess.
     void requestNRTSync();
-    bool isNRTSyncPending() const { return nrtSyncPending; }
+    // Counted, not a flag: several loads can be in flight at once, and each
+    // /synced answers only the commands sent before its own /sync. A flag
+    // cleared by the first reply said "loaded" while later ones still were not.
+    bool isNRTSyncPending() const { return nrtSyncOutstanding > 0; }
     // Sends /sync with a fresh id and returns it. The matching /synced
     // arrives through newFeedbackMessage once every asynchronous command sent
     // before it (plugin /cmd loads included) has completed.
@@ -248,7 +251,8 @@ protected:
     bool nrtCapturing = false;
     bool nrtCaptureOnly = true;
     bool nrtCaptureSuspended = false;
-    bool nrtSyncPending = false;
+    int nrtSyncOutstanding = 0;
+    uint64_t nrtSyncLastRequestMs = 0;
     int nextSyncId = 0;
     bool nrtEventsSuppressed = false;
     bool nrtTimeProviderEnabled = false;

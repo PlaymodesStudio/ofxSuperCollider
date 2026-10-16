@@ -99,6 +99,8 @@ void ofxSCNode::order(int position, std::vector<int> groupIDs)
 }
 
 void ofxSCNode::moveBefore(int _nodeID){
+    // No node to go before (it has no synth): "/n_before x -1" only fails
+    if(_nodeID < 0) return;
     
     ofxOscMessage m;
     

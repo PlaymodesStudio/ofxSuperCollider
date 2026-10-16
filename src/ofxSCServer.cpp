@@ -115,6 +115,14 @@ void ofxSCServer::process()
     // The bus reads the nodes asked for during this frame's update
     flushControlRequests();
 
+    // A /synced lost on the way (UDP) would leave every load "pending" for
+    // good: give up on the outstanding ones after a generous wait (NRT
+    // arming allows the SynthDef tree 60 s too)
+    if(nrtSyncOutstanding > 0 && ofGetElapsedTimeMillis() - nrtSyncLastRequestMs > 60000){
+        ofLogWarning("ofxSCServer") << nrtSyncOutstanding << " /sync request(s) never answered; carrying on";
+        nrtSyncOutstanding = 0;
+    }
+
     ofxOscMessage m;
     m.setAddress("/status");
     osc.sendMessage(m);
@@ -165,7 +173,7 @@ void ofxSCServer::process()
                 ofLog() << "Server Initialized";
             }
             else if(id == NRT_SYNC_ID){
-                nrtSyncPending = false;
+                if(nrtSyncOutstanding > 0) nrtSyncOutstanding--;
             }
             else{
                 newFeedbackMessage.notify(m);
@@ -352,6 +360,8 @@ void ofxSCServer::notify()
 
 void ofxSCServer::resetAllocators()
 {
+	// A rebooted server answers none of the earlier requests
+	nrtSyncOutstanding = 0;
 	if(allocatorBusAudio != nullptr){
 		allocatorBusAudio->reset(numInputs + numOutputs);
 	}
@@ -373,7 +383,8 @@ void ofxSCServer::resetAllocators()
 }
 
 void ofxSCServer::requestNRTSync(){
-    nrtSyncPending = true;
+    nrtSyncOutstanding++;
+    nrtSyncLastRequestMs = ofGetElapsedTimeMillis();
     ofxOscMessage m;
     m.setAddress("/sync");
     m.addIntArg(NRT_SYNC_ID);
@@ -473,7 +484,7 @@ void ofxSCServer::endNRTCapture(double endTime){
     nrtTimeProviderEnabled = false;
     nrtCaptureOnly = true;
     nrtCaptureSuspended = false;
-    nrtSyncPending = false;
+    nrtSyncOutstanding = 0;
     nrtEventsSuppressed = false;
     nrtCreatedNodeIDs.clear();
 }
