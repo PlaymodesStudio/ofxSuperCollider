@@ -101,6 +101,7 @@ void ofxSCSynth::create(int position, int groupID)
     mapaArgs.clear();
     
     getServer()->sendMsg(m);
+    markPending();
 }
 
 void ofxSCSynth::createAndRun(int position, int groupID, bool run){
@@ -189,6 +190,7 @@ void ofxSCSynth::createAndRun(int position, int groupID, bool run){
     bundle.addMessage(m2);
     
     getServer()->sendBundle(bundle);
+    markPending();
 }
 
 void ofxSCSynth::grain(int position, int groupID)

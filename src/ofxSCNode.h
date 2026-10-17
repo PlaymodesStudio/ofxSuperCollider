@@ -54,6 +54,11 @@ public:
     virtual void resendStoredArgs(){};
 
     bool isCreated() const { return created; }
+    // Created, but its /n_go not seen yet: after a while the server asks for it
+    // (/n_query). A lost /n_go (UDP) would otherwise hold every later set()
+    // back for good. An /n_info for it counts as the /n_go.
+    void markPending();
+    void checkPending(double now);
     // True once the server reported /n_end for this node (it freed itself,
     // e.g. doneAction: 2, or was freed), until it is created again.
     bool hasEnded() const { return ended; }
@@ -66,6 +71,8 @@ protected:
 
 	bool created;
 	bool ended = false;
+    double pendingSince = -1.0, lastQuery = -1.0;
+    int queries = 0;
     
 private:
     

@@ -22,7 +22,14 @@ ofxSCBuffer::ofxSCBuffer(int frames, int channels, ofxSCServer *server)
 	
 	index = server->allocatorBuffer->alloc(1);
 	
-	server->buffers[index] = this;
+	// alloc returns -1 when the buffer pool is exhausted: own nothing then
+	if(index >= 0 && index < (int)server->buffers.size())
+		server->buffers[index] = this;
+	else
+	{
+		ofLogError("ofxSCBuffer") << "no free buffer (" << server->buffers.size() << " in the pool)";
+		index = -1;
+	}
 	ready = false;
 }
 
@@ -85,6 +92,7 @@ void ofxSCBuffer::alloc()
 
 void ofxSCBuffer::free()
 {
+	if(index < 0) return;
 	ofxOscMessage m;	
 	m.setAddress("/b_free");
 	m.addIntArg(index);
@@ -92,4 +100,5 @@ void ofxSCBuffer::free()
     
     server->buffers[index] = NULL;
 	server->allocatorBuffer->free(index);
+	index = -1;
 }

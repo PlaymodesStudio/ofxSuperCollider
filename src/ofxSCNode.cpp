@@ -129,7 +129,38 @@ void ofxSCNode::moveAfter(int _nodeID){
     }
 }
 
+void ofxSCNode::markPending(){
+    pendingSince = ofGetElapsedTimef();
+    lastQuery = -1.0;
+    queries = 0;
+}
+
+void ofxSCNode::checkPending(double now){
+    if(created || ended || pendingSince < 0 || server == nullptr || nodeID <= 0) return;   // (-1: a grain, no notifications)
+    if(now - pendingSince < 1.0) return;              // a normal /n_go comes well before
+    if(queries >= 20){ pendingSince = -1.0; return; } // it never existed: stop asking
+    if(lastQuery >= 0 && now - lastQuery < 0.5) return;
+    lastQuery = now;
+    queries++;
+    ofxOscMessage m;
+    m.setAddress("/n_query");
+    m.addIntArg(nodeID);
+    server->sendMsg(m);
+}
+
 void ofxSCNode::feedbackListener(ofxOscMessage &msg){
+    // the server says the node exists (a query's reply) while its /n_go never
+    // arrived: the same as the /n_go
+    if(msg.getAddress() == "/n_info" && !created && !ended && pendingSince >= 0){
+        ofLogNotice("ofxSCNode") << "node " << nodeID << ": /n_go was lost, recovered by /n_query";
+        pendingSince = -1.0;
+        created = true;
+        for(auto &m : storedMessages) server->sendMsg(m);
+        storedMessages.clear();
+        resendStoredArgs();
+        return;
+    }
+    if(msg.getAddress() == "/n_go" || msg.getAddress() == "/n_end") pendingSince = -1.0;
     if(msg.getAddress() == "/n_go"){
         created = true;
         ended = false;

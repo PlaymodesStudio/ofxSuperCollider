@@ -112,6 +112,14 @@ void ofxSCServer::_process(ofEventArgs &e)
 
 void ofxSCServer::process()
 {
+    // Synths whose /n_go has not come: ask the server (see ofxSCNode::checkPending)
+    {
+        const double now = ofGetElapsedTimef();
+        if(now >= nextPendingCheck){
+            nextPendingCheck = now + 0.25;
+            for(auto &nff : nodeFeedbackFunctions) if(nff.first != nullptr) nff.first->checkPending(now);
+        }
+    }
     // The bus reads the nodes asked for during this frame's update
     flushControlRequests();
 

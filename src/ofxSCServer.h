@@ -217,6 +217,7 @@ protected:
     // them, and still waiting for process() so their order is kept.
     std::deque<ofxOscMessage> deferredMessages;
     std::map<ofxSCNode*, std::function<void(ofxOscMessage&)>> nodeFeedbackFunctions;
+    double nextPendingCheck = 0.0;
     // Node feedback (/n_go, /n_end, /tr, SendReply...) used to be offered to
     // every registered node, each one reading the message's first argument to
     // see whether it was the addressee. The nodes are now indexed by nodeID,
