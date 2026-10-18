@@ -167,6 +167,21 @@ public:
     // 0 when no scope is active.
     static uint64_t getScopedTimetag();
 
+    // The NRT score's counterpart: while a scope is alive, messages captured on
+    // this thread are stamped this many seconds after (or before) the capture
+    // clock's current time. A message timetagged for a precise instant (a
+    // transport anchor sent ahead of a loop restart) then lands at that instant
+    // in the score too, instead of on the frame that sent it.
+    class ScopedNRTOffset {
+    public:
+        explicit ScopedNRTOffset(double seconds);
+        ~ScopedNRTOffset();
+        ScopedNRTOffset(const ScopedNRTOffset&) = delete;
+        ScopedNRTOffset& operator=(const ScopedNRTOffset&) = delete;
+    private:
+        double previous;
+    };
+
     
     void setWaitToSend(bool b);
     bool getWaitToSend();

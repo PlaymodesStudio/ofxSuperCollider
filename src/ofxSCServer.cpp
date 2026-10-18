@@ -34,6 +34,7 @@ namespace {
 // One per thread: several servers may be driven from the same scheduling
 // scope, and a scope must not leak into another thread's sends.
 thread_local uint64_t scopedTimetagValue = 0;
+thread_local double scopedNRTOffsetValue = 0.0;
 
 // NTP timetag from a Unix epoch time in microseconds. Microsecond resolution
 // matters: the previous millisecond rounding was already a third of an audio
@@ -517,7 +518,7 @@ void ofxSCServer::setNRTTimeProviderEnabled(bool enabled){
 
 double ofxSCServer::getNRTEventTime() const{
     if(nrtTimeProviderEnabled && nrtTimeProvider){
-        return std::max(0.0, nrtTimeProvider());
+        return std::max(0.0, nrtTimeProvider() + scopedNRTOffsetValue);
     }
     return std::max(0.0, nrtTime);
 }
@@ -824,6 +825,14 @@ ofxSCServer::ScopedTimetag::ScopedTimetag(uint64_t timetag) : previous(scopedTim
 
 ofxSCServer::ScopedTimetag::~ScopedTimetag(){
     scopedTimetagValue = previous;
+}
+
+ofxSCServer::ScopedNRTOffset::ScopedNRTOffset(double seconds) : previous(scopedNRTOffsetValue){
+    scopedNRTOffsetValue = seconds;
+}
+
+ofxSCServer::ScopedNRTOffset::~ScopedNRTOffset(){
+    scopedNRTOffsetValue = previous;
 }
 
 uint64_t ofxSCServer::getScopedTimetag(){
