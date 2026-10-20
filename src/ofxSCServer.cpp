@@ -858,18 +858,11 @@ uint64_t ofxSCServer::timetagForSteadyTimeUs(uint64_t steadyTimeUs){
 }
 
 uint64_t ofxSCServer::applyLatencyToTimetag(uint64_t timetag) const {
-    if(timetag <= 1) return timetag;
-    if(b_latency) {
-        // Fixed-point seconds: the whole part is seconds, the fraction 2^-32 s.
-        const double offset = (double)latency;
-        timetag += (uint64_t)(offset * 4294967296.0);
-    }
-    // An instant already passed (or about to, before the bundle can arrive):
-    // scsynth would run it at once anyway, but log "late" for each one (a
-    // transport anchor is stamped at its frame's instant, a few hundred
-    // microseconds ago). Sent as "now" instead: the same result, no log.
-    if(timetag <= timetagNow(0.0005)) return 1;
-    return timetag;
+    if(!b_latency || timetag <= 1) return timetag;
+    // Fixed-point seconds: the whole part is seconds, the fraction 2^-32 s.
+    const double offset = (double)latency;
+    const uint64_t offsetFixed = (uint64_t)(offset * 4294967296.0);
+    return timetag + offsetFixed;
 }
 
 void ofxSCServer::sendMsgAt(ofxOscMessage& m, uint64_t timetag){
