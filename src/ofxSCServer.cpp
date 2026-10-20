@@ -864,13 +864,11 @@ uint64_t ofxSCServer::applyLatencyToTimetag(uint64_t timetag) const {
         const double offset = (double)latency;
         timetag += (uint64_t)(offset * 4294967296.0);
     }
-    // An instant just passed (or about to, before the bundle can arrive):
+    // An instant already passed (or about to, before the bundle can arrive):
     // scsynth would run it at once anyway, but log "late" for each one (a
     // transport anchor is stamped at its frame's instant, a few hundred
     // microseconds ago). Sent as "now" instead: the same result, no log.
-    // Later than 2 ms is a real timing problem (latency too small, a stalled
-    // frame): the timetag is kept so scsynth still reports it.
-    if(timetag <= timetagNow(0.0005) && timetag >= timetagNow(-0.002)) return 1;
+    if(timetag <= timetagNow(0.0005)) return 1;
     return timetag;
 }
 
