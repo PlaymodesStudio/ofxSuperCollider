@@ -20,8 +20,10 @@ ofxSCSynth::ofxSCSynth(std::string name, ofxSCServer *_server) : ofxSCNode(_serv
 
 ofxSCSynth::~ofxSCSynth()
 {
-    //If we for example created and freed fast a synth, we want the free message to arrive to the server
-    resendStoredArgs();
+    // Destruction discards unsent controls. A parent group may already have
+    // freed this synth, or /n_go may still be pending; replaying creation args
+    // here sends /n_set(n) to a node that no longer exists. free() sends its
+    // command immediately, independently of the parameter queues.
 }
 
 void ofxSCSynth::create(int position, int groupID)
