@@ -64,6 +64,11 @@ public:
     /// send the given bundle
     void sendBundle(const ofxOscBundle &bundle, uint64_t timetag = 1);
 
+    /// send the bundle's contents directly inside the timetagged bundle.
+    /// sendBundle nests them in an immediate bundle, which scsynth runs on
+    /// arrival whatever the outer timetag says.
+    void sendTimedBundle(const ofxOscBundle &bundle, uint64_t timetag);
+
     // Serialize an OSC packet using the same encoder as the network sender.
     // NRT score files use these packets instead of sending them over UDP.
     std::vector<char> serializeBundle(const ofxOscBundle &bundle, uint64_t timetag = 1) const;

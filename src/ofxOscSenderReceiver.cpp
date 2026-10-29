@@ -159,6 +159,17 @@ void ofxOscSenderReceiver::sendBundle(const ofxOscBundle &bundle, uint64_t timet
 }
 
 //--------------------------------------------------------------
+void ofxOscSenderReceiver::sendTimedBundle(const ofxOscBundle &bundle, uint64_t timetag){
+    if(!sendSocket){
+        ofLogError("ofxOscSender") << "trying to send with empty socket";
+        return;
+    }
+
+    const auto packet = serializeScoreBundle(bundle, timetag);
+    sendSocket->Send(packet.data(), packet.size());
+}
+
+//--------------------------------------------------------------
 void ofxOscSenderReceiver::sendMessage(const ofxOscMessage &message, bool wrapInBundle, uint64_t timetag){
     if(!sendSocket){
         ofLogError("ofxOscSender") << "trying to send with empty socket";

@@ -442,7 +442,9 @@ void ofxSCServer::sendBundle(ofxOscBundle& b)
     if(nrtCapturing && nrtCaptureOnly) return;
     const uint64_t scoped = getScopedTimetag();
     if(scoped != 0 && !waitToSend){
-        osc.sendBundle(b, applyLatencyToTimetag(scoped));
+        // Not osc.sendBundle: its immediate inner bundle would run on arrival,
+        // a whole scheduling lookahead early.
+        osc.sendTimedBundle(b, applyLatencyToTimetag(scoped));
         return;
     }
     if(waitToSend){
@@ -895,7 +897,7 @@ void ofxSCServer::sendBundleAt(ofxOscBundle& b, uint64_t timetag){
         for(int i = 0; i < b.getMessageCount(); i++) toSendBundle.addMessage(b.getMessageAt(i));
         return;
     }
-    osc.sendBundle(b, applyLatencyToTimetag(timetag));
+    osc.sendTimedBundle(b, applyLatencyToTimetag(timetag));
 }
 
 uint64_t ofxSCServer::getNowTimetag(float latency){
