@@ -155,6 +155,13 @@ void ofxSCServer::process()
             int numSynths   = m.getArgAsInt(2);
             int numGroups   = m.getArgAsInt(3);
             int numSynthDefs = m.getArgAsInt(4);
+            numUGens = m.getArgAsInt(1);
+            numSynthsRunning = numSynths;
+            if(m.getNumArgs() > 6){
+                avgCPU  = m.getArgAsFloat(5);
+                peakCPU = m.getArgAsFloat(6);
+            }
+            lastStatusMs = ofGetElapsedTimeMillis();
             
             if(!initializing && numGroups == 1 && numSynthDefs == 0 && numSynths == 0){ //Server rebooted
                 resetAllocators();
@@ -454,6 +461,11 @@ void ofxSCServer::sendBundle(ofxOscBundle& b)
     }else{
         osc.sendBundle(b, b_latency ? getNowTimetag(latency) : 1);
     }
+}
+
+uint64_t ofxSCServer::getStatusAgeMs() const {
+    if(lastStatusMs == 0) return UINT64_MAX;
+    return ofGetElapsedTimeMillis() - lastStatusMs;
 }
 
 void ofxSCServer::setWaitToSend(bool b){

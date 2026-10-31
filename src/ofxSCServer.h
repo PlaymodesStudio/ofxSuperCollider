@@ -191,6 +191,14 @@ public:
     void setBLatency(bool b){b_latency = b;};
     float getLatency(){return latency;};
     bool getBLatency(){return b_latency;};
+
+    // From the last /status.reply (sent every frame). CPU in percent;
+    // getStatusAgeMs() tells a silent (dead or busy) server apart.
+    float getAvgCPU() const { return avgCPU; }
+    float getPeakCPU() const { return peakCPU; }
+    int getNumUGens() const { return numUGens; }
+    int getNumSynths() const { return numSynthsRunning; }
+    uint64_t getStatusAgeMs() const;
 	
 	ofxSCResourceAllocator *allocatorBusAudio;
 	ofxSCResourceAllocator *allocatorBusControl;
@@ -258,6 +266,10 @@ protected:
     bool b_latency;
     
     bool initializing;
+
+    float avgCPU = 0.0f, peakCPU = 0.0f;
+    int numUGens = 0, numSynthsRunning = 0;
+    uint64_t lastStatusMs = 0;              // 0: no reply yet
 
     struct NRTEvent {
         double time = 0.0;
