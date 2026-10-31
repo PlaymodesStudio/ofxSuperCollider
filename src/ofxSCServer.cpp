@@ -124,6 +124,16 @@ void ofxSCServer::process()
     // The bus reads the nodes asked for during this frame's update
     flushControlRequests();
 
+    // No answer to the handshake for a long while: ask again. While scsynth
+    // installs a large SynthDef tree its audio thread blocks for stretches
+    // and status replies pause for seconds (that is normal, not a dead
+    // server), so this is generous. A /synced answers only once every earlier
+    // asynchronous command has completed; a duplicate reply is ignored.
+    if(initSyncPending && ofGetElapsedTimeMillis() - initSyncSentMs > 20000){
+        ofLogNotice("ofxSCServer") << "no answer to the initialization /sync yet; sending it again";
+        sendInitializationSyncMessage();
+    }
+
     // A /synced lost on the way (UDP) would leave every load "pending" for
     // good: give up on the outstanding ones after a generous wait (NRT
     // arming allows the SynthDef tree 60 s too)
@@ -163,10 +173,19 @@ void ofxSCServer::process()
             }
             lastStatusMs = ofGetElapsedTimeMillis();
             
-            if(!initializing && numGroups == 1 && numSynthDefs == 0 && numSynths == 0){ //Server rebooted
+            const bool pristine = numGroups == 1 && numSynthDefs == 0 && numSynths == 0;
+            // Pristine long after we created group 1 and sent the tree: not
+            // the process we initialized but a relaunched one (scsynth died
+            // while loading). Right after the boot a reply can still predate
+            // our /g_new, hence the delay.
+            const bool relaunched = initializing && pristine && lastStatusMs - initStartedMs > 3000;
+            if(relaunched) ofLogWarning("ofxSCServer") << "the server came back empty while initializing: booting it again";
+            if((!initializing || relaunched) && pristine){ //Server (re)booted
                 resetAllocators();
+                initSyncPending = false;
                 serverBootedEvent.notify(this);
                 initializing = true;
+                initStartedMs = lastStatusMs;
                 ofLog() << "Server Booted";
             }
         }
@@ -183,8 +202,11 @@ void ofxSCServer::process()
         else if (m.getAddress() == "/synced")
         {
             int id = m.getArgAsInt(0);
-            if(id == INTIALIZATION_ID && initializing){
+            // The handshake we sent completes the boot even if the boot flag was
+            // dropped meanwhile (it can only come from a server we initialized)
+            if(id == INTIALIZATION_ID && (initializing || initSyncPending)){
                 initializing = false;
+                initSyncPending = false;
                 serverInitializedEvent.notify(this);
                 ofLog() << "Server Initialized";
             }
@@ -203,6 +225,8 @@ void ofxSCServer::process()
 		else if (m.getAddress() == "/b_info")
 		{
 			int index = m.getArgAsInt32(0);
+			// freed (or the server rebooted) between the /b_query and its reply
+			if(index < 0 || index >= (int)buffers.size() || buffers[index] == nullptr) continue;
 			buffers[index]->frames = m.getArgAsInt32(1);
 			buffers[index]->channels = m.getArgAsInt32(2);
 			buffers[index]->sampleRate = m.getArgAsFloat(3);
@@ -378,6 +402,7 @@ void ofxSCServer::resetAllocators()
 {
 	// A rebooted server answers none of the earlier requests
 	nrtSyncOutstanding = 0;
+	allocationGeneration++;
 	if(allocatorBusAudio != nullptr){
 		allocatorBusAudio->reset(numInputs + numOutputs);
 	}
@@ -418,6 +443,8 @@ int ofxSCServer::requestSync(){
 }
 
 void ofxSCServer::sendInitializationSyncMessage(){
+    initSyncPending = true;
+    initSyncSentMs = ofGetElapsedTimeMillis();
     ofxOscMessage m3;
     m3.setAddress("/sync");
     m3.addIntArg(INTIALIZATION_ID);
@@ -432,7 +459,7 @@ void ofxSCServer::sendMsg(ofxOscMessage& m)
     const uint64_t scoped = getScopedTimetag();
     if(scoped != 0 && !waitToSend){
         // Inside a ScopedTimetag: this message belongs to a precise instant.
-        osc.sendMessage(m, true, applyLatencyToTimetag(scoped));
+        osc.sendMessage(m, true, settleTimetag(applyLatencyToTimetag(scoped)));
         return;
     }
     if(waitToSend){
@@ -451,7 +478,9 @@ void ofxSCServer::sendBundle(ofxOscBundle& b)
     if(scoped != 0 && !waitToSend){
         // Not osc.sendBundle: its immediate inner bundle would run on arrival,
         // a whole scheduling lookahead early.
-        osc.sendTimedBundle(b, applyLatencyToTimetag(scoped));
+        const uint64_t when = settleTimetag(applyLatencyToTimetag(scoped));
+        if(when <= 1) osc.sendBundle(b, 1);
+        else osc.sendTimedBundle(b, when);
         return;
     }
     if(waitToSend){
@@ -893,7 +922,7 @@ void ofxSCServer::sendMsgAt(ofxOscMessage& m, uint64_t timetag){
         toSendBundle.addMessage(m);
         return;
     }
-    osc.sendMessage(m, true, applyLatencyToTimetag(timetag));
+    osc.sendMessage(m, true, settleTimetag(applyLatencyToTimetag(timetag)));
 }
 
 void ofxSCServer::sendBundleAt(ofxOscBundle& b, uint64_t timetag){
@@ -909,7 +938,18 @@ void ofxSCServer::sendBundleAt(ofxOscBundle& b, uint64_t timetag){
         for(int i = 0; i < b.getMessageCount(); i++) toSendBundle.addMessage(b.getMessageAt(i));
         return;
     }
-    osc.sendTimedBundle(b, applyLatencyToTimetag(timetag));
+    const uint64_t when = settleTimetag(applyLatencyToTimetag(timetag));
+    if(when <= 1) osc.sendBundle(b, 1);
+    else osc.sendTimedBundle(b, when);
+}
+
+uint64_t ofxSCServer::settleTimetag(uint64_t timetag) const {
+    if(timetag <= 1 || minimumLeadSeconds <= 0.0) return timetag;
+    // Every message for one instant goes the same way: the first decides
+    if(timetag == settledIn) return settledOut;
+    settledIn = timetag;
+    settledOut = timetag < timetagNow(minimumLeadSeconds) ? 1 : timetag;
+    return settledOut;
 }
 
 uint64_t ofxSCServer::getNowTimetag(float latency){

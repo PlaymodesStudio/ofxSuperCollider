@@ -12,6 +12,8 @@
 #include "ofxOscSenderReceiver.h"
 #include <array>
 #include <memory>
+#include "ofUtils.h"
+#include "ofLog.h"
 
 //--------------------------------------------------------------
 ofxOscSenderReceiver::~ofxOscSenderReceiver() {
@@ -71,11 +73,8 @@ bool ofxOscSenderReceiver::setup(const ofxOscSenderReceiverSettings &settings){
     try{
         osc::IpEndpointName name(osc::IpEndpointName::ANY_ADDRESS, settings.inPort);
         socket = new osc::UdpListeningReceiveSocket(name, this, settings.reuse);
-        auto deleter = [](osc::UdpListeningReceiveSocket*socket){
-            // tell the socket to shutdown
-            socket->Break();
-            delete socket;
-        };
+        // stop() wakes and joins the thread before the socket goes
+        auto deleter = [](osc::UdpListeningReceiveSocket*socket){ delete socket; };
         auto newPtr = std::unique_ptr<osc::UdpListeningReceiveSocket, decltype(deleter)>(socket, deleter);
         listenSocket = std::move(newPtr);
     }
@@ -94,21 +93,22 @@ bool ofxOscSenderReceiver::setup(const ofxOscSenderReceiverSettings &settings){
         return false;
     }
 
-    listenThread = std::thread([this]{
-        while(listenSocket){
+    // The thread reads the socket pointer once and loops on its own flag:
+    // the old loop re-read `listenSocket` (a member of an object that may be
+    // mid-destruction) after Run() returned, and the thread was detached, so
+    // stop() deleted the socket under a blocked select() and the thread then
+    // touched freed memory (the ASan report on a destroyed server).
+    listening = true;
+    listenThread = std::thread([this, socket]{
+        while(listening){
             try{
-                listenSocket->Run();
+                socket->Run();   // returns on AsynchronousBreak()
             }
             catch(std::exception &e){
                 ofLogWarning("ofxOscSenderReceiver") << e.what();
             }
         }
     });
-
-    // detach thread so we don't have to wait on it before creating a new socket
-    // or on destruction, the custom deleter for the socket unique_ptr already
-    // does the right thing
-    listenThread.detach();
     
     // reuse socket
     osc::UdpTransmitSocket *send_socket = (osc::UdpTransmitSocket *) socket;
@@ -148,6 +148,19 @@ void ofxOscSenderReceiver::clear(){
 }
 
 //--------------------------------------------------------------
+namespace {
+// UDP carries at most 65507 bytes; a larger packet is dropped by the socket
+// without a word, and the synth it was for runs on its defaults.
+void checkDatagramSize(std::size_t size, const char* what){
+    if(size <= 65507) return;
+    static uint64_t lastLog = 0;
+    const uint64_t now = ofGetElapsedTimeMillis();
+    if(now - lastLog < 1000) return;
+    lastLog = now;
+    ofLogError("ofxOscSenderReceiver") << what << " of " << size << " bytes exceeds a UDP datagram and will not arrive";
+}
+}
+
 void ofxOscSenderReceiver::sendBundle(const ofxOscBundle &bundle, uint64_t timetag){
     if(!sendSocket){
         ofLogError("ofxOscSender") << "trying to send with empty socket";
@@ -155,6 +168,7 @@ void ofxOscSenderReceiver::sendBundle(const ofxOscBundle &bundle, uint64_t timet
     }
     
     const auto packet = serializeBundle(bundle, timetag);
+    checkDatagramSize(packet.size(), "OSC bundle");
     sendSocket->Send(packet.data(), packet.size());
 }
 
@@ -166,6 +180,7 @@ void ofxOscSenderReceiver::sendTimedBundle(const ofxOscBundle &bundle, uint64_t 
     }
 
     const auto packet = serializeScoreBundle(bundle, timetag);
+    checkDatagramSize(packet.size(), "timed OSC bundle");
     sendSocket->Send(packet.data(), packet.size());
 }
 
@@ -177,6 +192,7 @@ void ofxOscSenderReceiver::sendMessage(const ofxOscMessage &message, bool wrapIn
     }
     
     const auto packet = serializeMessage(message, wrapInBundle, timetag);
+    checkDatagramSize(packet.size(), "OSC message");
     sendSocket->Send(packet.data(), packet.size());
 }
 
@@ -406,6 +422,9 @@ void ofxOscSenderReceiver::appendParameter(ofxOscMessage &msg, const ofAbstractP
 
 //--------------------------------------------------------------
 void ofxOscSenderReceiver::stop() {
+    listening = false;
+    if(listenSocket) listenSocket->AsynchronousBreak();   // wakes the select() in Run()
+    if(listenThread.joinable()) listenThread.join();
     listenSocket.reset();
 }
 

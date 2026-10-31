@@ -22,6 +22,7 @@ ofxSCBus::ofxSCBus(int rate, int channels, ofxSCServer *server)
 	this->rate = rate;
 	this->channels = channels;
 	this->server = server;	
+	this->generation = server != nullptr ? server->getAllocationGeneration() : 0;
 	
 	if (this->rate == RATE_CONTROL)
 	{
@@ -130,6 +131,9 @@ void ofxSCBus::free()
     // back. Freeing twice put the range on the free list twice, and two later
     // busses then shared it.
     if(index < 0 || server == nullptr) return;
+    // Allocated before a server reboot: the allocator was reset since and this
+    // range belongs to whoever got it next. Nothing to give back.
+    if(generation != server->getAllocationGeneration()){ index = -1; return; }
 	// nothing is actually allocated server-side,
 	// so all we need to do here is reflect the availability of this address
     if (this->rate == RATE_CONTROL){

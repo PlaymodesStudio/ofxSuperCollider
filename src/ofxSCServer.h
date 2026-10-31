@@ -18,6 +18,7 @@
 #pragma once
 
 #include <vector>
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -64,6 +65,17 @@ public:
 	void notify();
     void sendInitializationSyncMessage();
 	void resetAllocators();
+    // Bumped by resetAllocators() (a server reboot). A bus or buffer created
+    // under an older generation owns nothing in the current allocator: its
+    // range has been handed out again, so freeing it would free somebody
+    // else's. ofxSCBus / ofxSCBuffer compare it in free().
+    uint32_t getAllocationGeneration() const { return allocationGeneration; }
+    // The boot handshake was started but never completed (the process died
+    // while loading its definitions): forget it, so the next pristine
+    // /status.reply counts as a boot again. serverManager calls this when it
+    // stops or restarts scsynth. A relaunched process is also recognised by
+    // its state: a pristine status long after we created group 1.
+    void resetBootState(){ initializing = false; initSyncPending = false; }
 	
 	void sendMsg(ofxOscMessage& message);
     void sendBundle(ofxOscBundle& bundle);
@@ -188,6 +200,15 @@ public:
     void sendStoredBundle();
     
     void setLatency(float _latency){latency = _latency;};
+    // Timetagged sends (a ScopedTimetag, sendMsgAt, sendBundleAt) whose
+    // instant is closer than this go out untimed instead. scsynth's clock runs
+    // ahead of the wall clock by its hardware buffer plus the device's output
+    // latency, so a bundle stamped only a few milliseconds ahead is "late":
+    // scsynth executes it on arrival anyway, and logs every one. An untimed
+    // bundle is executed the same way, silently. The host sets this from the
+    // server's buffer size and widens it when scsynth still reports lateness.
+    void setMinimumLeadSeconds(double seconds){ minimumLeadSeconds = std::max(0.0, seconds); }
+    double getMinimumLeadSeconds() const { return minimumLeadSeconds; }
     void setBLatency(bool b){b_latency = b;};
     float getLatency(){return latency;};
     bool getBLatency(){return b_latency;};
@@ -264,8 +285,14 @@ protected:
     
     float latency;
     bool b_latency;
+    double minimumLeadSeconds = 0.0;
+    mutable uint64_t settledIn = 0, settledOut = 0;   // the last instant decided, and how
     
     bool initializing;
+    bool initSyncPending = false;          // /sync 1917 sent, its /synced not seen yet
+    uint64_t initSyncSentMs = 0;           // when; re-sent while the server answers /status but not it
+    uint64_t initStartedMs = 0;            // when the boot was detected (/g_new and the tree sent)
+    uint32_t allocationGeneration = 0;
 
     float avgCPU = 0.0f, peakCPU = 0.0f;
     int numUGens = 0, numSynthsRunning = 0;
@@ -304,4 +331,6 @@ private:
     // latency compensation is on, so scheduled and immediate messages keep
     // the same relative timing.
     uint64_t applyLatencyToTimetag(uint64_t timetag) const;
+    // 1 (immediate) for an instant closer than the minimum lead, else the tag.
+    uint64_t settleTimetag(uint64_t timetag) const;
 };

@@ -46,6 +46,7 @@ public:
 	int rate = RATE_AUDIO;
 	int index = -1;     // -1: owns no range (not allocated, freed, moved from or a copy)
 	int channels = 0;
+    uint32_t generation = 0;   // the server's allocation generation this range belongs to
     
     std::vector<float> readValues;
 

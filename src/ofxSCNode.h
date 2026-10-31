@@ -54,6 +54,12 @@ public:
     virtual void resendStoredArgs(){};
 
     bool isCreated() const { return created; }
+    // Gives the node its id before anything is sent for it, so code that runs
+    // before create() (routing neighbours relative to it) can refer to it.
+    void ensureNodeID();
+    // /s_new has been sent (whether or not /n_go has come back yet). Until then
+    // stored controls stay stored: they ride on /s_new as creation arguments.
+    bool isCreationRequested() const { return creationRequested; }
     // Created, but its /n_go not seen yet: after a while the server asks for it
     // (/n_query). A lost /n_go (UDP) would otherwise hold every later set()
     // back for good. An /n_info for it counts as the /n_go.
@@ -71,6 +77,7 @@ protected:
 
 	bool created;
 	bool ended = false;
+    bool creationRequested = false;
     double pendingSince = -1.0, lastQuery = -1.0;
     int queries = 0;
     

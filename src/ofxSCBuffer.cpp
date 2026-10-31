@@ -19,6 +19,7 @@ ofxSCBuffer::ofxSCBuffer(int frames, int channels, ofxSCServer *server)
 	this->server     = server;
 	this->frames     = frames;
 	this->channels   = channels;
+	this->generation = server != nullptr ? server->getAllocationGeneration() : 0;
 	
 	index = server->allocatorBuffer->alloc(1);
 	
@@ -93,6 +94,8 @@ void ofxSCBuffer::alloc()
 void ofxSCBuffer::free()
 {
 	if(index < 0) return;
+	// From before a server reboot: the number is somebody else's now
+	if(server == nullptr || generation != server->getAllocationGeneration()){ index = -1; return; }
 	ofxOscMessage m;	
 	m.setAddress("/b_free");
 	m.addIntArg(index);

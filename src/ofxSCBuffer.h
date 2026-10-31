@@ -38,6 +38,7 @@ public:
 	
 	ofxSCServer *server;
 
+    uint32_t generation = 0;   // the server's allocation generation (see ofxSCServer)
 	int index;
 	int frames;
 	int channels;

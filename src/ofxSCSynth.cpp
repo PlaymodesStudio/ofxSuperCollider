@@ -30,10 +30,8 @@ void ofxSCSynth::create(int position, int groupID)
 {
 	ofxOscMessage m;
 
-	if (nodeID == 0){
-		nodeID = ofxSCNode::id_base++;
-		getServer()->invalidateNodeIndex();
-	}
+	ensureNodeID();
+	creationRequested = true;
 	
 	m.setAddress("/s_new");
 	m.addStringArg(name.c_str());
@@ -110,10 +108,8 @@ void ofxSCSynth::createAndRun(int position, int groupID, bool run){
     ofxOscMessage m;
 
     //TODO: Reuse nodeIDs
-    if (nodeID == 0){
-        nodeID = ofxSCNode::id_base++;
-        getServer()->invalidateNodeIndex();
-    }
+    ensureNodeID();
+    creationRequested = true;
     
     m.setAddress("/s_new");
     m.addStringArg(name.c_str());
@@ -398,6 +394,10 @@ ofxOscMessage ofxSCSynth::setMessage(std::string arg, std::vector<int> values)
 }
 
 void ofxSCSynth::resendStoredArgs(){
+    // Nothing has been sent for this synth yet: its stored controls are the
+    // creation arguments of the coming /s_new. Sending them now would address
+    // a node the server does not have ("Node not found") and lose them.
+    if(!creationRequested) return;
     ofxOscMessage m;
     ofxOscMessage m_mapa;
     ofxOscMessage m_mapan;
@@ -423,12 +423,10 @@ void ofxSCSynth::resendStoredArgs(){
     }
     args.clear();
 
-    // Vector float args → individual /n_setn messages.
-    // addCharArg('['/']') produces OSC type tag 'c' (a single char value),
-    // which SuperCollider's /n_set parser does NOT recognise as an array
-    // delimiter — it expects literal '[' ']' type tags in the type-tag string.
-    // /n_setn (nodeID, controlName, count, v0, v1, ...) is the correct,
-    // unambiguous SC command for setting a run of consecutive controls.
+    // Vector float args → individual /n_setn messages. (ofxOscSenderReceiver
+    // turns the '[' / ']' char args used by create() into OSC array type
+    // tags, which scsynth accepts in /s_new; /n_setn is simply the clearer
+    // command for a run of consecutive controls on a live synth.)
     std::vector<ofxOscMessage> setnMessages;
     for (vecDictionary::const_iterator it = vecArgs.begin();
          it != vecArgs.end(); ++it)

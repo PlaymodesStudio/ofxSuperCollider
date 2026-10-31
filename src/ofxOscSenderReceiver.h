@@ -21,6 +21,8 @@
 #include "ofParameter.h"
 
 #include "ofThreadChannel.h"
+#include <atomic>
+#include <thread>
 #include <vector>
 
 /// \struct ofxOscSenderSettings
@@ -144,7 +146,8 @@ private:
     /// shared between objects if allowReuse is true
     std::unique_ptr<osc::UdpListeningReceiveSocket, std::function<void(osc::UdpListeningReceiveSocket*)>> listenSocket;
 
-    std::thread listenThread; ///< listener thread
+    std::thread listenThread; ///< listener thread, joined by stop()
+    std::atomic<bool> listening{false}; ///< the thread's loop condition (not the socket pointer)
     ofThreadChannel<ofxOscMessage> messagesChannel; ///< message passing thread channel
 };
 

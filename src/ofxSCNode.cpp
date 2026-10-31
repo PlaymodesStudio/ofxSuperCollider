@@ -52,6 +52,13 @@ void ofxSCNode::run(bool b){
     }
 }
 
+void ofxSCNode::ensureNodeID()
+{
+    if(nodeID != 0) return;
+    nodeID = id_base++;
+    if(server != nullptr) server->invalidateNodeIndex();
+}
+
 void ofxSCNode::free()
 {
 	ofxOscMessage m;
@@ -169,6 +176,7 @@ void ofxSCNode::feedbackListener(ofxOscMessage &msg){
         resendStoredArgs();
     }else if(msg.getAddress() == "/n_end"){
         created = false;
+        creationRequested = false;
         ended = true;
     }else if(msg.getAddress() == "/n_off"){
         
