@@ -55,8 +55,9 @@ void ofxSCNode::run(bool b){
 void ofxSCNode::ensureNodeID()
 {
     if(nodeID != 0) return;
+    const int previousID = nodeID;
     nodeID = id_base++;
-    if(server != nullptr) server->invalidateNodeIndex();
+    if(server != nullptr) server->reindexNode(this, previousID);
 }
 
 void ofxSCNode::free()

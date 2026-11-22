@@ -142,9 +142,17 @@ void ofxSCServer::process()
         nrtSyncOutstanding = 0;
     }
 
-    ofxOscMessage m;
-    m.setAddress("/status");
-    osc.sendMessage(m);
+    // /status at 10 Hz: the CPU meter, boot detection and the liveness age
+    // (getStatusAgeMs) need no more, and each request costs a reply to parse.
+    {
+        const uint64_t nowMs = ofGetElapsedTimeMillis();
+        if(nowMs - lastStatusRequestMs >= 100){
+            lastStatusRequestMs = nowMs;
+            ofxOscMessage m;
+            m.setAddress("/status");
+            osc.sendMessage(m);
+        }
+    }
     
 //#ifdef _ofxOscSENDERRECEIVER_H
 
@@ -819,12 +827,36 @@ void ofxSCServer::addNodeListener(ofxSCNode* node){
         if(node != nullptr && node->nodeID == msg.getArgAsInt(0))
             node->feedbackListener(msg);
     };
-    nodeIndexDirty = true;
+    if(!nodeIndexDirty && node != nullptr){
+        auto& entry = nodeIndex[node->nodeID];
+        if(std::find(entry.begin(), entry.end(), node) == entry.end()) entry.push_back(node);
+    }
 }
 
 void ofxSCServer::removeNodeListener(ofxSCNode *node){
     nodeFeedbackFunctions.erase(node);
-    nodeIndexDirty = true;
+    if(!nodeIndexDirty && node != nullptr && !unindexNode(node, node->nodeID)) nodeIndexDirty = true;
+}
+
+// Index upkeep is incremental: a full rebuild walks every wrapper (Box voice
+// pools are hundreds) and grains change their id on every grain.
+bool ofxSCServer::unindexNode(ofxSCNode* node, int id){
+    auto found = nodeIndex.find(id);
+    if(found == nodeIndex.end()) return false;
+    auto& entry = found->second;
+    auto it = std::find(entry.begin(), entry.end(), node);
+    if(it == entry.end()) return false;
+    entry.erase(it);
+    if(entry.empty()) nodeIndex.erase(found);
+    return true;
+}
+
+void ofxSCServer::reindexNode(ofxSCNode* node, int previousID){
+    if(nodeIndexDirty || node == nullptr) return;
+    if(previousID == node->nodeID) return;
+    if(nodeFeedbackFunctions.count(node) == 0) return;
+    if(!unindexNode(node, previousID)){ nodeIndexDirty = true; return; }
+    nodeIndex[node->nodeID].push_back(node);
 }
 
 void ofxSCServer::dispatchNodeFeedback(ofxOscMessage& m){
@@ -841,8 +873,16 @@ void ofxSCServer::dispatchNodeFeedback(ofxOscMessage& m){
         nodeIndexDirty = false;
     }
 
-    std::vector<ofxSCNode*> addressees;
     auto found = nodeIndex.find(id);
+    if(found != nodeIndex.end() && found->second.size() == 1){
+        // The usual case, one wrapper per id: no copy of the list. The
+        // handler may unregister or renumber nodes, so nothing of the index
+        // is touched after the call.
+        ofxSCNode* node = found->second.front();
+        if(nodeFeedbackFunctions.count(node) != 0 && node->nodeID == id) node->feedbackListener(m);
+        return;
+    }
+    std::vector<ofxSCNode*> addressees;
     if(found != nodeIndex.end()){
         addressees = found->second;
     }else{

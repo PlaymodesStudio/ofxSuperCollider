@@ -239,6 +239,8 @@ public:
     // Call when a registered node's nodeID changes, so node feedback keeps
     // reaching it (see dispatchNodeFeedback).
     void invalidateNodeIndex(){ nodeIndexDirty = true; }
+    // A registered node's id changed (from previousID): move it in the index.
+    void reindexNode(ofxSCNode* node, int previousID);
     
     // Server replies not addressed to a node: /done, /fail and /synced for
     // ids requested through requestSync().
@@ -269,6 +271,8 @@ protected:
     void dispatchNodeFeedback(ofxOscMessage& m);
     std::unordered_map<int, std::vector<ofxSCNode*>> nodeIndex;
     bool nodeIndexDirty = true;
+    bool unindexNode(ofxSCNode* node, int id);
+    uint64_t lastStatusRequestMs = 0;
     
     bool waitToSend;
     
