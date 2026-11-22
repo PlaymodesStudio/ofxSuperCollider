@@ -42,10 +42,10 @@ void ofxSCSynth::create(int position, int groupID)
 	for (dictionary::const_iterator it = args.begin(); 
         it != args.end(); ++it)
 	{
-		std::string key = it->first;
+		const std::string& key = it->first;
 		float value = it->second;
 
-		m.addStringArg(key.c_str());
+		m.addStringArg(key);
 		m.addFloatArg(value);
 	}
     args.clear();
@@ -53,10 +53,10 @@ void ofxSCSynth::create(int position, int groupID)
     for (vecDictionary::const_iterator it = vecArgs.begin();
          it != vecArgs.end(); ++it)
     {
-        std::string key = it->first;
-        std::vector<float> value = it->second;
+        const std::string& key = it->first;
+        const std::vector<float>& value = it->second;
         
-        m.addStringArg(key.c_str());
+        m.addStringArg(key);
         m.addCharArg('[');
         for(auto &v : value) m.addFloatArg(v);
         m.addCharArg(']');
@@ -66,21 +66,21 @@ void ofxSCSynth::create(int position, int groupID)
     for (strDictionary::const_iterator it = strArgs.begin();
          it != strArgs.end(); ++it)
     {
-        std::string key = it->first;
-        std::string value = it->second;
+        const std::string& key = it->first;
+        const std::string& value = it->second;
         
-        m.addStringArg(key.c_str());
-        m.addStringArg(value.c_str());
+        m.addStringArg(key);
+        m.addStringArg(value);
     }
     strArgs.clear();
     
     for (vecStrDictionary::const_iterator it = vecStrArgs.begin();
          it != vecStrArgs.end(); ++it)
     {
-        std::string key = it->first;
-        std::vector<std::string> value = it->second;
+        const std::string& key = it->first;
+        const std::vector<std::string>& value = it->second;
         
-        m.addStringArg(key.c_str());
+        m.addStringArg(key);
         m.addCharArg('[');
         for(auto &v : value) m.addStringArg(v);
         m.addCharArg(']');
@@ -90,10 +90,10 @@ void ofxSCSynth::create(int position, int groupID)
     for (mapaDictionary::const_iterator it = mapaArgs.begin();
          it != mapaArgs.end(); it++)
     {
-        std::string key = it->first;
+        const std::string& key = it->first;
         std::pair<int, int> value = it->second;
         
-        m.addStringArg(key.c_str());
+        m.addStringArg(key);
         m.addCharArg('[');
         for(int i = 0; i < value.second; i++) m.addStringArg("a" + ofToString(value.first + i));
         m.addCharArg(']');
@@ -120,10 +120,10 @@ void ofxSCSynth::createAndRun(int position, int groupID, bool run){
     for (dictionary::const_iterator it = args.begin();
         it != args.end(); ++it)
     {
-        std::string key = it->first;
+        const std::string& key = it->first;
         float value = it->second;
 
-        m.addStringArg(key.c_str());
+        m.addStringArg(key);
         m.addFloatArg(value);
     }
     args.clear();
@@ -131,10 +131,10 @@ void ofxSCSynth::createAndRun(int position, int groupID, bool run){
     for (vecDictionary::const_iterator it = vecArgs.begin();
          it != vecArgs.end(); ++it)
     {
-        std::string key = it->first;
-        std::vector<float> value = it->second;
+        const std::string& key = it->first;
+        const std::vector<float>& value = it->second;
         
-        m.addStringArg(key.c_str());
+        m.addStringArg(key);
         m.addCharArg('[');
         for(auto &v : value) m.addFloatArg(v);
         m.addCharArg(']');
@@ -144,21 +144,21 @@ void ofxSCSynth::createAndRun(int position, int groupID, bool run){
     for (strDictionary::const_iterator it = strArgs.begin();
          it != strArgs.end(); ++it)
     {
-        std::string key = it->first;
-        std::string value = it->second;
+        const std::string& key = it->first;
+        const std::string& value = it->second;
         
-        m.addStringArg(key.c_str());
-        m.addStringArg(value.c_str());
+        m.addStringArg(key);
+        m.addStringArg(value);
     }
     strArgs.clear();
     
     for (vecStrDictionary::const_iterator it = vecStrArgs.begin();
          it != vecStrArgs.end(); ++it)
     {
-        std::string key = it->first;
-        std::vector<std::string> value = it->second;
+        const std::string& key = it->first;
+        const std::vector<std::string>& value = it->second;
         
-        m.addStringArg(key.c_str());
+        m.addStringArg(key);
         m.addCharArg('[');
         for(auto &v : value) m.addStringArg(v);
         m.addCharArg(']');
@@ -168,10 +168,10 @@ void ofxSCSynth::createAndRun(int position, int groupID, bool run){
     for (mapaDictionary::const_iterator it = mapaArgs.begin();
          it != mapaArgs.end(); it++)
     {
-        std::string key = it->first;
+        const std::string& key = it->first;
         std::pair<int, int> value = it->second;
         
-        m.addStringArg(key.c_str());
+        m.addStringArg(key);
         m.addCharArg('[');
         for(int i = 0; i < value.second; i++) m.addStringArg("a" + ofToString(value.first + i));
         m.addCharArg(']');
@@ -193,8 +193,9 @@ void ofxSCSynth::createAndRun(int position, int groupID, bool run){
 
 void ofxSCSynth::grain(int position, int groupID)
 {
+	const int previousID = nodeID;
 	nodeID = -1;
-	getServer()->invalidateNodeIndex();
+	getServer()->reindexNode(this, previousID);
 	create(position, groupID);
 }
 
@@ -415,10 +416,10 @@ void ofxSCSynth::resendStoredArgs(){
     for (dictionary::const_iterator it = args.begin();
         it != args.end(); ++it)
     {
-        std::string key = it->first;
+        const std::string& key = it->first;
         float value = it->second;
 
-        m.addStringArg(key.c_str());
+        m.addStringArg(key);
         m.addFloatArg(value);
     }
     args.clear();
@@ -431,13 +432,13 @@ void ofxSCSynth::resendStoredArgs(){
     for (vecDictionary::const_iterator it = vecArgs.begin();
          it != vecArgs.end(); ++it)
     {
-        std::string key = it->first;
-        std::vector<float> value = it->second;
+        const std::string& key = it->first;
+        const std::vector<float>& value = it->second;
 
         ofxOscMessage mSetn;
         mSetn.setAddress("/n_setn");
         mSetn.addIntArg(nodeID);
-        mSetn.addStringArg(key.c_str());
+        mSetn.addStringArg(key);
         mSetn.addIntArg((int)value.size());
         for(auto &v : value) mSetn.addFloatArg(v);
         setnMessages.push_back(std::move(mSetn));
@@ -447,21 +448,21 @@ void ofxSCSynth::resendStoredArgs(){
     for (strDictionary::const_iterator it = strArgs.begin();
          it != strArgs.end(); ++it)
     {
-        std::string key = it->first;
-        std::string value = it->second;
+        const std::string& key = it->first;
+        const std::string& value = it->second;
 
-        m.addStringArg(key.c_str());
-        m.addStringArg(value.c_str());
+        m.addStringArg(key);
+        m.addStringArg(value);
     }
     strArgs.clear();
 
     for (vecStrDictionary::const_iterator it = vecStrArgs.begin();
          it != vecStrArgs.end(); ++it)
     {
-        std::string key = it->first;
-        std::vector<std::string> value = it->second;
+        const std::string& key = it->first;
+        const std::vector<std::string>& value = it->second;
 
-        m.addStringArg(key.c_str());
+        m.addStringArg(key);
         m.addCharArg('[');
         for(auto &v : value) m.addStringArg(v);
         m.addCharArg(']');
@@ -471,14 +472,14 @@ void ofxSCSynth::resendStoredArgs(){
     for (mapaDictionary::const_iterator it = mapaArgs.begin();
          it != mapaArgs.end(); it++)
     {
-        std::string key = it->first;
+        const std::string& key = it->first;
         std::pair<int, int> value = it->second;
 
         if(value.second == 1){
-            m_mapa.addStringArg(key.c_str());
+            m_mapa.addStringArg(key);
             m_mapa.addIntArg(value.first);
         }else{
-            m_mapan.addStringArg(key.c_str());
+            m_mapan.addStringArg(key);
             m_mapan.addIntArg(value.first);
             m_mapan.addIntArg(value.second);
         }
