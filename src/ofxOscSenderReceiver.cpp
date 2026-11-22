@@ -161,49 +161,16 @@ void checkDatagramSize(std::size_t size, const char* what){
 }
 }
 
-void ofxOscSenderReceiver::sendBundle(const ofxOscBundle &bundle, uint64_t timetag){
-    if(!sendSocket){
-        ofLogError("ofxOscSender") << "trying to send with empty socket";
-        return;
-    }
-    
-    const auto packet = serializeBundle(bundle, timetag);
-    checkDatagramSize(packet.size(), "OSC bundle");
-    sendSocket->Send(packet.data(), packet.size());
-}
-
-//--------------------------------------------------------------
-void ofxOscSenderReceiver::sendTimedBundle(const ofxOscBundle &bundle, uint64_t timetag){
-    if(!sendSocket){
-        ofLogError("ofxOscSender") << "trying to send with empty socket";
-        return;
-    }
-
-    const auto packet = serializeScoreBundle(bundle, timetag);
-    checkDatagramSize(packet.size(), "timed OSC bundle");
-    sendSocket->Send(packet.data(), packet.size());
-}
-
-//--------------------------------------------------------------
-void ofxOscSenderReceiver::sendMessage(const ofxOscMessage &message, bool wrapInBundle, uint64_t timetag){
-    if(!sendSocket){
-        ofLogError("ofxOscSender") << "trying to send with empty socket";
-        return;
-    }
-    
-    const auto packet = serializeMessage(message, wrapInBundle, timetag);
-    checkDatagramSize(packet.size(), "OSC message");
-    sendSocket->Send(packet.data(), packet.size());
-}
-
 namespace {
 // Synth cleanup can send OSC from static destructors, after thread_local
 // objects have already been destroyed. Own all scratch storage per call.
-// Small control messages use the stack; large SynthDef/score packets grow
-// uninitialized heap storage only when needed.
-template<typename WritePacket>
-std::vector<char> serializePacket(WritePacket writePacket){
-    std::array<char, 1024> localBuffer;
+// The stack buffer holds a full control batch (scSynthControlBatch and
+// scControlBusBatch fill up to 4 KB) and a 4096-float /b_setn; only larger
+// SynthDef/score packets grow uninitialized heap storage. `use` sees the
+// finished packet in place (no copy).
+template<typename WritePacket, typename Use>
+void withPacket(WritePacket writePacket, Use use){
+    std::array<char, 24576> localBuffer;
     std::unique_ptr<char[]> heapBuffer;
     char* data = localBuffer.data();
     std::size_t capacity = localBuffer.size();
@@ -213,7 +180,8 @@ std::vector<char> serializePacket(WritePacket writePacket){
             osc::OutboundPacketStream packet(data, capacity);
             writePacket(packet);
             if(!packet.IsReady()) throw osc::OutOfBufferMemoryException();
-            return std::vector<char>(packet.Data(), packet.Data() + packet.Size());
+            use(packet.Data(), packet.Size());
+            return;
         }catch(const osc::OutOfBufferMemoryException&){
             if(capacity == maxCapacity) throw;
             capacity = capacity < 327680u ? 327680u : capacity * 2;
@@ -222,6 +190,63 @@ std::vector<char> serializePacket(WritePacket writePacket){
         }
     }
 }
+
+template<typename WritePacket>
+std::vector<char> serializePacket(WritePacket writePacket){
+    std::vector<char> out;
+    withPacket(writePacket, [&](const char* data, std::size_t size){ out.assign(data, data + size); });
+    return out;
+}
+}
+
+void ofxOscSenderReceiver::sendBundle(const ofxOscBundle &bundle, uint64_t timetag){
+    if(!sendSocket){
+        ofLogError("ofxOscSender") << "trying to send with empty socket";
+        return;
+    }
+    
+    withPacket([&](osc::OutboundPacketStream& p){
+        p << osc::BundleInitiator(timetag);
+        appendBundle(bundle, p);
+        p << osc::EndBundle;
+    }, [&](const char* data, std::size_t size){
+        checkDatagramSize(size, "OSC bundle");
+        sendSocket->Send(data, size);
+    });
+}
+
+//--------------------------------------------------------------
+void ofxOscSenderReceiver::sendTimedBundle(const ofxOscBundle &bundle, uint64_t timetag){
+    if(!sendSocket){
+        ofLogError("ofxOscSender") << "trying to send with empty socket";
+        return;
+    }
+
+    withPacket([&](osc::OutboundPacketStream& p){
+        p << osc::BundleInitiator(timetag);
+        appendBundleContents(bundle, p);
+        p << osc::EndBundle;
+    }, [&](const char* data, std::size_t size){
+        checkDatagramSize(size, "timed OSC bundle");
+        sendSocket->Send(data, size);
+    });
+}
+
+//--------------------------------------------------------------
+void ofxOscSenderReceiver::sendMessage(const ofxOscMessage &message, bool wrapInBundle, uint64_t timetag){
+    if(!sendSocket){
+        ofLogError("ofxOscSender") << "trying to send with empty socket";
+        return;
+    }
+    
+    withPacket([&](osc::OutboundPacketStream& p){
+        if(wrapInBundle) p << osc::BundleInitiator(timetag);
+        appendMessage(message, p);
+        if(wrapInBundle) p << osc::EndBundle;
+    }, [&](const char* data, std::size_t size){
+        checkDatagramSize(size, "OSC message");
+        sendSocket->Send(data, size);
+    });
 }
 
 std::vector<char> ofxOscSenderReceiver::serializeBundle(const ofxOscBundle &bundle, uint64_t timetag) const{
@@ -510,10 +535,8 @@ void ofxOscSenderReceiver::ProcessMessage(const osc::ReceivedMessage &m, const o
     // set the address
     msg.setAddress(m.AddressPattern());
     
-    // set the sender ip/host
-    char endpointHost[osc::IpEndpointName::ADDRESS_STRING_LENGTH];
-    remoteEndpoint.AddressAsString(endpointHost);
-    msg.setRemoteEndpoint(endpointHost, remoteEndpoint.port);
+    // The sender address is not set: scsynth is the only peer and nothing
+    // reads it, and formatting it cost a string per received message.
 
     // transfer the arguments
     for(osc::ReceivedMessage::const_iterator arg = m.ArgumentsBegin(); arg != m.ArgumentsEnd(); ++arg){
