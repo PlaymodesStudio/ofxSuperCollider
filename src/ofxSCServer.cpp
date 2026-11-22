@@ -194,7 +194,7 @@ void ofxSCServer::process()
                 serverBootedEvent.notify(this);
                 initializing = true;
                 initStartedMs = lastStatusMs;
-                ofLog() << "Server Booted";
+                ofLog() << "Server " << port << " booted";
             }
         }
 		
@@ -216,7 +216,7 @@ void ofxSCServer::process()
                 initializing = false;
                 initSyncPending = false;
                 serverInitializedEvent.notify(this);
-                ofLog() << "Server Initialized";
+                ofLog() << "Server " << port << " initialized";
             }
             else if(id == NRT_SYNC_ID){
                 if(nrtSyncOutstanding > 0) nrtSyncOutstanding--;
